@@ -41,14 +41,6 @@ local BuildConfig = {
 			Basic = true,
 			Price = 0,
 		},
-		Stair = {
-			DisplayName = "Escada",
-			Size = Vector3.new(8, 8, 8),
-			Material = Enum.Material.Concrete,
-			Color = Color3.fromRGB(186, 181, 171),
-			Basic = true,
-			Price = 0,
-		},
 	},
 }
 
