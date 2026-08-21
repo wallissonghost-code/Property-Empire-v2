@@ -11,6 +11,9 @@ on:
         required: true
         type: string
 
+permissions:
+  contents: write
+
 jobs:
   publish:
     name: Publish Property Empire v2
@@ -49,3 +52,20 @@ jobs:
             --header "x-api-key: ${ROBLOX_API_KEY}" \
             --header "Content-Type: application/xml" \
             --data-binary @Property-Empire-v2.rbxlx
+
+      - name: Record successful publication
+        shell: bash
+        run: |
+          mkdir -p .deploy
+          {
+            echo "place_id=${PLACE_ID}"
+            echo "universe_id=${UNIVERSE_ID}"
+            echo "source_commit=${GITHUB_SHA}"
+            echo "published_at_utc=$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+            echo "status=accepted_by_roblox_open_cloud"
+          } > .deploy/last-publish.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- .deploy/last-publish.txt
+          git commit -m "chore: record successful Roblox publish" || exit 0
+          git push
