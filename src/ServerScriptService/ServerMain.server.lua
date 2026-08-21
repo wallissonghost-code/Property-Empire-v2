@@ -5,6 +5,7 @@ local LandService = require(Services.LandService)
 local BuildService = require(Services.BuildService)
 local BuildPlacementGuard = require(Services.BuildPlacementGuard)
 local BusinessService = require(Services.BusinessService)
+local BusinessEconomyService = require(Services.BusinessEconomyService)
 
 local started = false
 
@@ -19,6 +20,7 @@ local function startServer()
 	BuildService:Start(PlayerDataService)
 	BuildPlacementGuard:Start()
 	BusinessService:Start(PlayerDataService)
+	BusinessEconomyService:Start(PlayerDataService)
 	print("[Property Empire v2] Server started")
 end
 
