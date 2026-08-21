@@ -1,0 +1,32 @@
+name: Build Roblox place
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build with Rojo
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rojo
+        run: cargo install rojo --version 7.6.1 --locked
+
+      - name: Build place
+        run: rojo build default.project.json --output Property-Empire-v2.rbxlx
+
+      - name: Upload place artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Property-Empire-v2
+          path: Property-Empire-v2.rbxlx
+          if-no-files-found: error
