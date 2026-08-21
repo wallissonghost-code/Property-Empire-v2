@@ -1,6 +1,9 @@
 name: Publish to Roblox
 
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
     inputs:
       confirm_place_id:
@@ -11,7 +14,7 @@ on:
 jobs:
   publish:
     name: Publish Property Empire v2
-    if: ${{ inputs.confirm_place_id == '138523274489009' }}
+    if: ${{ (github.event_name == 'workflow_dispatch' && inputs.confirm_place_id == '138523274489009') || (github.event_name == 'push' && contains(github.event.head_commit.message, '[INITIAL_WIPE_V2]')) }}
     runs-on: ubuntu-latest
 
     env:
@@ -34,7 +37,7 @@ jobs:
       - name: Install Rojo
         run: cargo install rojo --version 7.6.1 --locked
 
-      - name: Build place
+      - name: Build clean v2 place
         run: rojo build default.project.json --output Property-Empire-v2.rbxlx
 
       - name: Publish place through Roblox Open Cloud
