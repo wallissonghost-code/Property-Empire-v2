@@ -2,6 +2,9 @@
   "name": "PropertyEmpireV2",
   "tree": {
     "$className": "DataModel",
+    "Workspace": {
+      "$className": "Workspace"
+    },
     "ReplicatedStorage": {
       "$className": "ReplicatedStorage",
       "Shared": {
