@@ -15,7 +15,7 @@ overlapHighlight.OutlineColor = Color3.fromRGB(255, 220, 220)
 overlapHighlight.OutlineTransparency = 0
 overlapHighlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
 overlapHighlight.Enabled = false
-overlapHighlight.Parent = player:WaitForChild("PlayerGui")
+overlapHighlight.Parent = workspace
 
 local function nearlyEqual(a, b)
 	return math.abs(a - b) <= 0.01
