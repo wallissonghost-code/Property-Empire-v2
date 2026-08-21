@@ -1,0 +1,47 @@
+local BuildConfig = {
+	DataStoreName = "PropertyEmpireV2_Builds_v1",
+	DataVersion = 1,
+	GridSize = 2,
+	LevelHeight = 8,
+	MaxLevels = 8,
+	MaxPiecesPerLot = 450,
+	BoundaryMargin = 1,
+	PlacementCooldown = 0.12,
+	SaveDebounceSeconds = 8,
+	Catalog = {
+		Floor = {
+			DisplayName = "Piso",
+			Size = Vector3.new(8, 1, 8),
+			Material = Enum.Material.Concrete,
+			Color = Color3.fromRGB(198, 198, 198),
+			Basic = true,
+			Price = 0,
+		},
+		Wall = {
+			DisplayName = "Parede",
+			Size = Vector3.new(8, 8, 1),
+			Material = Enum.Material.SmoothPlastic,
+			Color = Color3.fromRGB(229, 226, 218),
+			Basic = true,
+			Price = 0,
+		},
+		Doorway = {
+			DisplayName = "Porta",
+			Size = Vector3.new(8, 8, 1),
+			Material = Enum.Material.SmoothPlastic,
+			Color = Color3.fromRGB(220, 216, 205),
+			Basic = true,
+			Price = 0,
+		},
+		Window = {
+			DisplayName = "Janela",
+			Size = Vector3.new(8, 8, 1),
+			Material = Enum.Material.SmoothPlastic,
+			Color = Color3.fromRGB(220, 216, 205),
+			Basic = true,
+			Price = 0,
+		},
+	},
+}
+
+return table.freeze(BuildConfig)
