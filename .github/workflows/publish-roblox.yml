@@ -1,0 +1,48 @@
+name: Publish to Roblox
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_place_id:
+        description: "Type the target Place ID to confirm publication"
+        required: true
+        type: string
+
+jobs:
+  publish:
+    name: Publish Property Empire v2
+    if: ${{ inputs.confirm_place_id == '138523274489009' }}
+    runs-on: ubuntu-latest
+
+    env:
+      UNIVERSE_ID: "10715548183"
+      PLACE_ID: "138523274489009"
+      ROBLOX_API_KEY: ${{ secrets.Property_empire }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Verify Roblox API key is configured
+        shell: bash
+        run: |
+          if [ -z "$ROBLOX_API_KEY" ]; then
+            echo "Roblox API key secret is missing."
+            exit 1
+          fi
+
+      - name: Install Rojo
+        run: cargo install rojo --version 7.6.1 --locked
+
+      - name: Build place
+        run: rojo build default.project.json --output Property-Empire-v2.rbxlx
+
+      - name: Publish place through Roblox Open Cloud
+        shell: bash
+        run: |
+          curl --fail-with-body --silent --show-error --location \
+            --request POST \
+            "https://apis.roblox.com/universes/v1/${UNIVERSE_ID}/places/${PLACE_ID}/versions?versionType=Published" \
+            --header "x-api-key: ${ROBLOX_API_KEY}" \
+            --header "Content-Type: application/xml" \
+            --data-binary @Property-Empire-v2.rbxlx
