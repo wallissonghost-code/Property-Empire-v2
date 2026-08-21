@@ -1,6 +1,7 @@
 local Services = script.Parent:WaitForChild("Services")
 
 local PlayerDataService = require(Services.PlayerDataService)
+local LandService = require(Services.LandService)
 
 local started = false
 
@@ -11,6 +12,7 @@ local function startServer()
 	started = true
 
 	PlayerDataService:Start()
+	LandService:Start(PlayerDataService)
 	print("[Property Empire v2] Server started")
 end
 
