@@ -37,10 +37,23 @@ local function dataKey(player)
 	return "player_" .. tostring(player.UserId)
 end
 
+local function countDictionaryEntries(value)
+	if type(value) ~= "table" then
+		return 0
+	end
+
+	local count = 0
+	for _ in pairs(value) do
+		count += 1
+	end
+	return count
+end
+
 local function syncPublicAttributes(player, data)
 	player:SetAttribute("DataLoaded", true)
 	player:SetAttribute("Cash", data.Cash)
 	player:SetAttribute("OwnedLotCount", #data.OwnedLots)
+	player:SetAttribute("BusinessCount", countDictionaryEntries(data.Businesses))
 end
 
 function PlayerDataService:Get(player)
@@ -130,6 +143,31 @@ function PlayerDataService:RemoveOwnedLot(player, lotId)
 
 	table.remove(data.OwnedLots, index)
 	player:SetAttribute("OwnedLotCount", #data.OwnedLots)
+	return true
+end
+
+function PlayerDataService:SetBusiness(player, lotId, businessRecord)
+	local data = profiles[player]
+	if not data or type(lotId) ~= "string" or type(businessRecord) ~= "table" then
+		return false
+	end
+
+	if type(data.Businesses) ~= "table" then
+		data.Businesses = {}
+	end
+	data.Businesses[lotId] = deepCopy(businessRecord)
+	player:SetAttribute("BusinessCount", countDictionaryEntries(data.Businesses))
+	return true
+end
+
+function PlayerDataService:RemoveBusiness(player, lotId)
+	local data = profiles[player]
+	if not data or type(data.Businesses) ~= "table" then
+		return false
+	end
+
+	data.Businesses[lotId] = nil
+	player:SetAttribute("BusinessCount", countDictionaryEntries(data.Businesses))
 	return true
 end
 
