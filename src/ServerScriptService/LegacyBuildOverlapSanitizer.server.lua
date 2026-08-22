@@ -7,8 +7,9 @@ local BuildConfig = require(Shared:WaitForChild("BuildConfig"))
 local BuildCollision = require(Shared:WaitForChild("BuildCollision"))
 
 local buildStore = DataStoreService:GetDataStore(BuildConfig.DataStoreName)
-local sanitizerStore = DataStoreService:GetDataStore("PropertyEmpireV2_BuildSanitizer_v1")
+local oldSanitizerStore = DataStoreService:GetDataStore("PropertyEmpireV2_BuildSanitizer_v1")
 
+local CLEANUP_VERSION = 1
 local processedLots = {}
 local rejectedByLot = {}
 
@@ -16,7 +17,7 @@ local function buildKey(lotId)
 	return "build_" .. lotId
 end
 
-local function sanitizerKey(lotId)
+local function oldSanitizerKey(lotId)
 	return "legacy_overlap_" .. lotId
 end
 
@@ -57,9 +58,8 @@ local function calculateRejectedIds(stored)
 		end
 	end
 
-	-- Keep the newest valid piece whenever two legacy pieces occupy the same
-	-- physical volume. This best matches the player's most recent edit while
-	-- preserving every non-conflicting piece of the construction.
+	-- Keep the most recent piece when legacy data contains two pieces sharing
+	-- physical volume. The older conflicting entry is permanently removed.
 	table.sort(ordered, function(a, b)
 		if a.CreatedAt == b.CreatedAt then
 			return a.Index > b.Index
@@ -90,81 +90,85 @@ local function calculateRejectedIds(stored)
 	return rejectedIds
 end
 
-local function readPersistentSanitizer(lotId)
-	local success, stored = pcall(function()
-		return sanitizerStore:GetAsync(sanitizerKey(lotId))
-	end)
-	if not success then
-		warn(string.format("[LegacyBuildOverlapSanitizer] Failed to read sanitizer for %s", lotId))
-		return nil
+local function asSet(ids)
+	local set = {}
+	for _, pieceId in ipairs(ids) do
+		if type(pieceId) == "string" and pieceId ~= "" then
+			set[pieceId] = true
+		end
 	end
-
-	if type(stored) == "table" and type(stored.RejectedIds) == "table" then
-		return stored.RejectedIds
-	end
-	return nil
+	return set
 end
 
-local function calculateAndPersistSanitizer(lotId)
-	local success, stored = pcall(function()
-		return buildStore:GetAsync(buildKey(lotId))
-	end)
-	if not success then
-		warn(string.format("[LegacyBuildOverlapSanitizer] Failed to inspect legacy build for %s", lotId))
-		return nil
-	end
-
-	local rejectedIds = calculateRejectedIds(stored)
-	local saveSuccess = pcall(function()
-		sanitizerStore:SetAsync(sanitizerKey(lotId), {
-			Version = 1,
-			RejectedIds = rejectedIds,
-			CreatedAt = os.time(),
-		})
-	end)
-	if not saveSuccess then
-		warn(string.format("[LegacyBuildOverlapSanitizer] Failed to persist sanitizer for %s", lotId))
-	end
-
-	return rejectedIds
-end
-
-local function getRejectedIds(lotId)
+local function migrateLot(lotId)
 	if processedLots[lotId] then
 		return rejectedByLot[lotId] or {}
 	end
 
-	local rejectedIds = readPersistentSanitizer(lotId)
-	if rejectedIds == nil then
-		rejectedIds = calculateAndPersistSanitizer(lotId)
-	end
-	if rejectedIds == nil then
+	local finalRejectedIds = {}
+	local success, errorMessage = pcall(function()
+		buildStore:UpdateAsync(buildKey(lotId), function(stored)
+			if type(stored) ~= "table" or type(stored.Pieces) ~= "table" then
+				finalRejectedIds = {}
+				return stored
+			end
+
+			if (tonumber(stored.LegacyCleanupVersion) or 0) >= CLEANUP_VERSION then
+				finalRejectedIds = {}
+				return stored
+			end
+
+			local rejectedIds = calculateRejectedIds(stored)
+			local rejectedSet = asSet(rejectedIds)
+			local filtered = {}
+
+			for _, raw in ipairs(stored.Pieces) do
+				if type(raw) == "table" and type(raw.Id) == "string" and not rejectedSet[raw.Id] then
+					table.insert(filtered, raw)
+				end
+			end
+
+			stored.Pieces = filtered
+			stored.LegacyCleanupVersion = CLEANUP_VERSION
+			stored.LegacyCleanupAt = os.time()
+			stored.LegacyRemovedPieceCount = #rejectedIds
+			finalRejectedIds = rejectedIds
+			return stored
+		end)
+	end)
+
+	if not success then
+		warn(string.format(
+			"[LegacyBuildOverlapSanitizer] Failed to permanently migrate %s: %s",
+			lotId,
+			tostring(errorMessage)
+		))
 		return nil
 	end
 
-	local set = {}
-	for _, pieceId in ipairs(rejectedIds) do
-		if type(pieceId) == "string" then
-			set[pieceId] = true
-		end
-	end
+	-- The old helper DataStore is obsolete after the build record itself has
+	-- been migrated. Remove its per-lot key so stale cleanup metadata disappears.
+	pcall(function()
+		oldSanitizerStore:RemoveAsync(oldSanitizerKey(lotId))
+	end)
 
+	local rejectedSet = asSet(finalRejectedIds)
 	processedLots[lotId] = true
-	rejectedByLot[lotId] = set
-	return set
+	rejectedByLot[lotId] = rejectedSet
+	return rejectedSet
 end
 
 local function sanitizeFolder(lotFolder)
-	if not lotFolder:IsA("Folder") or #lotFolder:GetChildren() == 0 then
+	if not lotFolder:IsA("Folder") then
 		return
 	end
 
-	local rejectedSet = getRejectedIds(lotFolder.Name)
+	local rejectedSet = migrateLot(lotFolder.Name)
 	if not rejectedSet then
 		return
 	end
 
-	local removed = 0
+	local removedFromWorld = 0
 	for _, root in ipairs(lotFolder:GetChildren()) do
 		local pieceId = root:GetAttribute("BuildPieceId")
 		if type(pieceId) ~= "string" or pieceId == "" then
@@ -172,16 +176,16 @@ local function sanitizeFolder(lotFolder)
 		end
 		if rejectedSet[pieceId] then
 			root:Destroy()
-			removed += 1
+			removedFromWorld += 1
 		end
 	end
 
-	lotFolder:SetAttribute("LegacyOverlapSanitized", true)
-	lotFolder:SetAttribute("LegacyOverlapHiddenPieces", removed)
-	if removed > 0 then
+	lotFolder:SetAttribute("LegacyCleanupVersion", CLEANUP_VERSION)
+	lotFolder:SetAttribute("LegacyRemovedFromWorld", removedFromWorld)
+	if removedFromWorld > 0 then
 		print(string.format(
-			"[Property Empire v2] Hidden %d legacy overlapping piece(s) from %s",
-			removed,
+			"[Property Empire v2] Permanently removed %d legacy conflicting piece(s) from %s",
+			removedFromWorld,
 			lotFolder.Name
 		))
 	end
@@ -207,15 +211,15 @@ local function start()
 		return
 	end
 
-	-- BuildService loads DataStore-backed construction asynchronously. Re-run
-	-- the visual sanitation for the first minute so late-loaded legacy roots are
-	-- removed as soon as they appear. New valid pieces are never in RejectedIds.
+	-- BuildService and this one-time migration can overlap during startup.
+	-- Repeating the runtime removal briefly guarantees that a stale object loaded
+	-- from a pre-migration read cannot remain visible in the current server.
 	for _ = 1, 30 do
 		runSweep(buildsFolder)
 		task.wait(2)
 	end
 
-	print("[Property Empire v2] Legacy build overlap sanitizer ready")
+	print("[Property Empire v2] Legacy construction cleanup migration complete")
 end
 
 task.spawn(start)
