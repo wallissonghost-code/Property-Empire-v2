@@ -5,6 +5,7 @@ local Services = script.Parent:WaitForChild("Services")
 local PlayerDataService = require(Services.PlayerDataService)
 local BusinessService = require(Services.BusinessService)
 local BusinessEconomyService = require(Services.BusinessEconomyService)
+local MiningMuseumService = require(Services.MiningMuseumService)
 
 local WORLD_NAME = "PropertyEmpireV2World"
 
@@ -37,4 +38,5 @@ if not getBusinessState or not licenseBusiness then
 end
 
 BusinessEconomyService:Start(PlayerDataService)
+MiningMuseumService:Start(PlayerDataService)
 print("[Property Empire v2] Business systems bootstrap ready")
