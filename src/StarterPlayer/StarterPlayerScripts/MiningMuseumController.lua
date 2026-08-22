@@ -431,6 +431,11 @@ local function renderState(state)
 	if state.Target.BusinessType == "MiningCompany" then
 		if state.Target.IsOwner then
 			renderMiningOwner(state)
+			-- Owners may also operate a Museum. Keep the market visible so a
+			-- single player can move finds between their own licensed companies.
+			if type(state.BuyerMuseums) == "table" and #state.BuyerMuseums > 0 then
+				renderMiningMarket(state)
+			end
 		else
 			renderMiningMarket(state)
 		end
