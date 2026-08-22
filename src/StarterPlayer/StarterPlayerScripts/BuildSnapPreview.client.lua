@@ -9,6 +9,7 @@ local BuildSnap = require(Shared:WaitForChild("BuildSnap"))
 
 local player = Players.LocalPlayer
 local mouse = player:GetMouse()
+local updateQueued = false
 
 local function findLotForPreview(preview)
 	local world = workspace:FindFirstChild("PropertyEmpireV2World")
@@ -87,6 +88,8 @@ local function readPlacedEntries(lotId)
 end
 
 local function updateSnapPreview()
+	updateQueued = false
+
 	local visuals = workspace:FindFirstChild("PropertyEmpireLocalBuildVisuals")
 	local preview = visuals and visuals:FindFirstChild("BuildPreview")
 	if not preview or not preview:IsA("BasePart") or preview.Transparency >= 1 then
@@ -106,8 +109,20 @@ local function updateSnapPreview()
 
 	local relative = lot.CFrame:ToObjectSpace(preview.CFrame)
 	local rotation = inferRotation(relative)
+	local level = math.round(
+		(relative.Position.Y - lot.Size.Y / 2 - spec.Size.Y / 2) / BuildConfig.LevelHeight
+	)
+	local entries = readPlacedEntries(lot.Name)
 	local localHit = lot.CFrame:PointToObjectSpace(mouse.Hit.Position)
-	local snapped = BuildSnap.SnapLocalPosition(BuildConfig, pieceType, rotation, localHit.X, localHit.Z)
+	local snapped = BuildSnap.SnapLocalPosition(
+		BuildConfig,
+		pieceType,
+		rotation,
+		localHit.X,
+		localHit.Z,
+		entries,
+		level
+	)
 	if not snapped then
 		return
 	end
@@ -117,9 +132,6 @@ local function updateSnapPreview()
 		* CFrame.new(snapped.LocalX, relative.Position.Y, snapped.LocalZ)
 		* rotationOnly
 
-	local level = math.round(
-		(relative.Position.Y - lot.Size.Y / 2 - spec.Size.Y / 2) / BuildConfig.LevelHeight
-	)
 	local candidate = BuildCollision.MakeDescriptor(
 		BuildConfig,
 		pieceType,
@@ -131,7 +143,7 @@ local function updateSnapPreview()
 
 	local blocked = not candidate or not BuildCollision.IsInsideLot(BuildConfig, lot, candidate)
 	if not blocked then
-		blocked = BuildCollision.HasConflict(BuildConfig, candidate, readPlacedEntries(lot.Name))
+		blocked = BuildCollision.HasConflict(BuildConfig, candidate, entries)
 	end
 
 	preview:SetAttribute("SnapGridX", snapped.GridX)
@@ -140,10 +152,14 @@ local function updateSnapPreview()
 	preview.Color = blocked and Color3.fromRGB(235, 84, 84) or Color3.fromRGB(80, 220, 120)
 end
 
-RunService:BindToRenderStep(
-	"PropertyEmpireBuildSnapPreview",
-	Enum.RenderPriority.Last.Value,
-	updateSnapPreview
-)
+-- BuildController also updates the preview on RenderStepped. Queue this correction
+-- after that event so the authoritative snap/collision visualization wins the frame.
+RunService.RenderStepped:Connect(function()
+	if updateQueued then
+		return
+	end
+	updateQueued = true
+	task.defer(updateSnapPreview)
+end)
 
-print("[Property Empire v2] Build snap preview started")
+print("[Property Empire v2] Adaptive build snap preview started")
