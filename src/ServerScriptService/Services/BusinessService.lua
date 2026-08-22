@@ -14,18 +14,6 @@ local lotLocks = {}
 local businessRecords = {}
 local businessSignsFolder = nil
 
-local function deepCopy(value)
-	if type(value) ~= "table" then
-		return value
-	end
-
-	local result = {}
-	for key, child in pairs(value) do
-		result[key] = deepCopy(child)
-	end
-	return result
-end
-
 local function businessKey(lotId)
 	return "business_" .. lotId
 end
@@ -71,7 +59,10 @@ local function normalizeRecord(lotId, record)
 
 	if record.OwnerUserId > 0 and BusinessConfig.Types[record.BusinessType] then
 		record.Status = "Active"
-	elseif record.Status == "Pending" and record.ReservationExpiresAt > os.time() and BusinessConfig.Types[record.BusinessType] then
+	elseif record.Status == "Pending"
+		and record.ReservationExpiresAt > os.time()
+		and BusinessConfig.Types[record.BusinessType]
+	then
 		record.Status = "Pending"
 	else
 		return makeAvailableRecord(lotId)
@@ -139,7 +130,10 @@ local function reserveLicense(lotId, userId, businessType)
 				return current
 			end
 
-			if current.Status == "Pending" and current.ReservationExpiresAt > now and current.ReservedBy ~= userId then
+			if current.Status == "Pending"
+				and current.ReservationExpiresAt > now
+				and current.ReservedBy ~= userId
+			then
 				return current
 			end
 
@@ -157,7 +151,10 @@ local function reserveLicense(lotId, userId, businessType)
 	end
 
 	result = normalizeRecord(lotId, result)
-	return result.Status == "Pending" and result.ReservedBy == userId and result.BusinessType == businessType, result
+	return result.Status == "Pending"
+		and result.ReservedBy == userId
+		and result.BusinessType == businessType,
+		result
 end
 
 local function releaseReservation(lotId, userId)
@@ -306,88 +303,6 @@ local function loadPersistentBusinesses()
 	end
 end
 
-local function createWorldPart(parent, name, size, cframe, color, material)
-	local part = Instance.new("Part")
-	part.Name = name
-	part.Anchored = true
-	part.Size = size
-	part.CFrame = cframe
-	part.Color = color
-	part.Material = material or Enum.Material.SmoothPlastic
-	part.TopSurface = Enum.SurfaceType.Smooth
-	part.BottomSurface = Enum.SurfaceType.Smooth
-	part.Parent = parent
-	return part
-end
-
-local function createCityHall(openRemote)
-	local world = getWorld()
-	local spawn = world and world:FindFirstChild("MainSpawn")
-	if not world or not spawn or not spawn:IsA("BasePart") then
-		warn("[BusinessService] World or MainSpawn missing; City Hall was not created")
-		return
-	end
-
-	local previous = world:FindFirstChild("CityHall")
-	if previous then
-		previous:Destroy()
-	end
-
-	local model = Instance.new("Model")
-	model.Name = "CityHall"
-	model.Parent = world
-
-	local origin = CFrame.new(spawn.Position + Vector3.new(58, 0, 0))
-	local stone = Color3.fromRGB(215, 211, 198)
-	local trim = Color3.fromRGB(69, 91, 116)
-	local dark = Color3.fromRGB(47, 55, 66)
-
-	createWorldPart(model, "Floor", Vector3.new(64, 1, 36), origin * CFrame.new(0, 0, 0), stone, Enum.Material.Concrete)
-	createWorldPart(model, "NorthWall", Vector3.new(64, 11, 1), origin * CFrame.new(0, 5.5, -17.5), stone, Enum.Material.Concrete)
-	createWorldPart(model, "SouthWall", Vector3.new(64, 11, 1), origin * CFrame.new(0, 5.5, 17.5), stone, Enum.Material.Concrete)
-	createWorldPart(model, "EastWall", Vector3.new(1, 11, 36), origin * CFrame.new(31.5, 5.5, 0), stone, Enum.Material.Concrete)
-	createWorldPart(model, "WestWallNorth", Vector3.new(1, 11, 12), origin * CFrame.new(-31.5, 5.5, -12), stone, Enum.Material.Concrete)
-	createWorldPart(model, "WestWallSouth", Vector3.new(1, 11, 12), origin * CFrame.new(-31.5, 5.5, 12), stone, Enum.Material.Concrete)
-	createWorldPart(model, "WestLintel", Vector3.new(1, 3, 12), origin * CFrame.new(-31.5, 9.5, 0), trim, Enum.Material.Concrete)
-	createWorldPart(model, "Roof", Vector3.new(68, 1, 40), origin * CFrame.new(0, 11.5, 0), trim, Enum.Material.Slate)
-	createWorldPart(model, "Steps", Vector3.new(8, 1, 12), origin * CFrame.new(-35, 0, 0), stone, Enum.Material.Concrete)
-	createWorldPart(model, "ColumnNorth", Vector3.new(2, 10, 2), origin * CFrame.new(-33, 5, -7), trim, Enum.Material.Marble)
-	createWorldPart(model, "ColumnSouth", Vector3.new(2, 10, 2), origin * CFrame.new(-33, 5, 7), trim, Enum.Material.Marble)
-
-	local desk = createWorldPart(model, "LicensingDesk", Vector3.new(9, 3.5, 5), origin * CFrame.new(-21, 1.75, 0), dark, Enum.Material.WoodPlanks)
-	local attachment = Instance.new("Attachment")
-	attachment.Name = "LicensePromptAttachment"
-	attachment.Position = Vector3.new(0, 2.7, 0)
-	attachment.Parent = desk
-
-	local prompt = Instance.new("ProximityPrompt")
-	prompt.ActionText = "Solicitar licença"
-	prompt.ObjectText = "Prefeitura"
-	prompt.HoldDuration = 0.35
-	prompt.MaxActivationDistance = 10
-	prompt.RequiresLineOfSight = false
-	prompt.Parent = attachment
-	prompt.Triggered:Connect(function(player)
-		openRemote:FireClient(player)
-	end)
-
-	local signPart = createWorldPart(model, "CityHallSign", Vector3.new(0.5, 5, 18), origin * CFrame.new(-32.05, 7.5, 0), trim, Enum.Material.SmoothPlastic)
-	local signGui = Instance.new("SurfaceGui")
-	signGui.Face = Enum.NormalId.Left
-	signGui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
-	signGui.PixelsPerStud = 45
-	signGui.Parent = signPart
-
-	local signLabel = Instance.new("TextLabel")
-	signLabel.Size = UDim2.fromScale(1, 1)
-	signLabel.BackgroundTransparency = 1
-	signLabel.Text = "PREFEITURA\nLICENÇAS EMPRESARIAIS"
-	signLabel.TextColor3 = Color3.fromRGB(245, 246, 248)
-	signLabel.TextScaled = true
-	signLabel.Font = Enum.Font.GothamBold
-	signLabel.Parent = signGui
-end
-
 local function getBusinessState(player)
 	local data = playerDataService:Get(player)
 	if not data then
@@ -477,7 +392,10 @@ local function licenseBusiness(player, payload)
 		return finish({ Ok = false, Error = "Seus dados ainda não estão disponíveis" })
 	end
 	if data.Cash < BusinessConfig.LicenseFee then
-		return finish({ Ok = false, Error = string.format("Você precisa de $%d para a licença", BusinessConfig.LicenseFee) })
+		return finish({
+			Ok = false,
+			Error = string.format("Você precisa de $%d para a licença", BusinessConfig.LicenseFee),
+		})
 	end
 
 	local reserved, reservationRecord = reserveLicense(lotId, player.UserId, businessType)
@@ -570,7 +488,6 @@ local function ensureRemotes()
 
 	getState.OnServerInvoke = getBusinessState
 	licenseRemote.OnServerInvoke = licenseBusiness
-	return openRemote
 end
 
 function BusinessService:Start(dataService)
@@ -593,10 +510,11 @@ function BusinessService:Start(dataService)
 		businessSignsFolder.Parent = world
 	end
 
-	local openRemote = ensureRemotes()
-	createCityHall(openRemote)
+	-- City Hall geometry is owned exclusively by CityHallPremiumAuthority.
+	-- This service only owns licensing data, remotes and business signs.
+	ensureRemotes()
 	loadPersistentBusinesses()
-	print("[Property Empire v2] BusinessService started with City Hall licensing")
+	print("[Property Empire v2] BusinessService licensing ready")
 end
 
 return BusinessService
