@@ -136,6 +136,12 @@ function MuseumService:GetMuseumInfo(player)
 	return {Model=model,Score=self:GetScore(player),Level=p.Museum.Level,Entrance=floor.CFrame*CFrame.new(0,2,floor.Size.Z/2+8),Inside=floor.CFrame*CFrame.new(0,2,0),Exit=floor.CFrame*CFrame.new(0,2,floor.Size.Z/2+14)}
 end
 
+function MuseumService:GetPlotCFrame(player)
+	local slot = assignSlot(player)
+	if not slot then return nil end
+	return worldService:GetSlots()[slot]
+end
+
 function MuseumService:GetOwners()
 	local result={} for p in pairs(models) do if p.Parent then table.insert(result,p) end end return result
 end

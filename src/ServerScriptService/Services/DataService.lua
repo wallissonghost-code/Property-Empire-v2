@@ -12,7 +12,10 @@ local function defaultProfile()
 	return {
 		SchemaVersion = Config.SchemaVersion,
 		Cash = Config.StartingCash,
-		Museum = { Level = 1 },
+		Museum = {
+			Level = 1,
+			BuildPieces = {},
+		},
 		Artifacts = {},
 		Stats = { Mined = 0, Visits = 0, VisitorRevenue = 0, Sales = 0, Purchases = 0 },
 	}
@@ -23,10 +26,32 @@ local function reconcile(p)
 	if type(p) ~= "table" then return d end
 	p.Cash = math.max(0, math.floor(tonumber(p.Cash) or d.Cash))
 	if type(p.Museum) ~= "table" then p.Museum = d.Museum end
-	p.Museum.Level = math.clamp(math.floor(tonumber(p.Museum.Level) or 1),1,5)
+	p.Museum.Level = math.clamp(math.floor(tonumber(p.Museum.Level) or 1), 1, 5)
+	if type(p.Museum.BuildPieces) ~= "table" then p.Museum.BuildPieces = {} end
+	local cleanPieces = {}
+	for _, piece in ipairs(p.Museum.BuildPieces) do
+		if type(piece) == "table"
+			and type(piece.Id) == "string"
+			and type(piece.ItemId) == "string"
+			and tonumber(piece.X)
+			and tonumber(piece.Z)
+		then
+			table.insert(cleanPieces, {
+				Id = piece.Id,
+				ItemId = piece.ItemId,
+				X = tonumber(piece.X),
+				Z = tonumber(piece.Z),
+				Floor = math.clamp(math.floor(tonumber(piece.Floor) or 1), 1, 5),
+				Rotation = math.floor(tonumber(piece.Rotation) or 0),
+				CreatedAt = math.max(0, math.floor(tonumber(piece.CreatedAt) or 0)),
+			})
+		end
+		if #cleanPieces >= 500 then break end
+	end
+	p.Museum.BuildPieces = cleanPieces
 	if type(p.Artifacts) ~= "table" then p.Artifacts = {} end
 	if type(p.Stats) ~= "table" then p.Stats = d.Stats end
-	for k,v in pairs(d.Stats) do p.Stats[k] = math.max(0, math.floor(tonumber(p.Stats[k]) or v)) end
+	for k, v in pairs(d.Stats) do p.Stats[k] = math.max(0, math.floor(tonumber(p.Stats[k]) or v)) end
 	p.SchemaVersion = Config.SchemaVersion
 	return p
 end
@@ -58,6 +83,7 @@ function DataService:Load(player)
 end
 
 function DataService:Get(player) return profiles[player] end
+function DataService:IsTester(player) return tester(player) end
 function DataService:Wait(player, seconds)
 	local deadline = os.clock() + (seconds or 10)
 	while player.Parent and not profiles[player] and os.clock() < deadline do task.wait() end
