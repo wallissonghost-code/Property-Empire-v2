@@ -9,6 +9,7 @@ local PlayerDataTemplate = require(Shared.PlayerDataTemplate)
 local PlayerDataService = {}
 local store = DataStoreService:GetDataStore(GameConfig.DataStoreName)
 local profiles = {}
+local testOriginalCash = {}
 local started = false
 
 local function deepCopy(value)
@@ -49,6 +50,42 @@ local function countDictionaryEntries(value)
 	return count
 end
 
+local function isUnlimitedCashTester(player)
+	if not GameConfig.TestUnlimitedCashEnabled then
+		return false
+	end
+
+	if GameConfig.TestUnlimitedCashCreatorAccess
+		and game.CreatorType == Enum.CreatorType.User
+		and player.UserId == game.CreatorId
+	then
+		return true
+	end
+
+	local usernames = GameConfig.TestUnlimitedCashUsernames
+	if type(usernames) == "table" then
+		for _, username in ipairs(usernames) do
+			if type(username) == "string" and string.lower(player.Name) == string.lower(username) then
+				return true
+			end
+		end
+	end
+
+	return false
+end
+
+local function enableUnlimitedCashForSession(player, data)
+	if not isUnlimitedCashTester(player) then
+		player:SetAttribute("UnlimitedTestCash", false)
+		return
+	end
+
+	-- Keep the real balance separately so test money never pollutes persistence.
+	testOriginalCash[player] = math.max(0, math.floor(tonumber(data.Cash) or 0))
+	data.Cash = math.max(1, math.floor(tonumber(GameConfig.TestUnlimitedCash) or 999999999))
+	player:SetAttribute("UnlimitedTestCash", true)
+end
+
 local function syncPublicAttributes(player, data)
 	player:SetAttribute("DataLoaded", true)
 	player:SetAttribute("Cash", data.Cash)
@@ -75,6 +112,7 @@ function PlayerDataService:Load(player)
 	data.SchemaVersion = GameConfig.SchemaVersion
 	data.Meta.CreatedAt = data.Meta.CreatedAt ~= 0 and data.Meta.CreatedAt or os.time()
 	data.Meta.LastSeenAt = os.time()
+	enableUnlimitedCashForSession(player, data)
 	profiles[player] = data
 	syncPublicAttributes(player, data)
 	return data
@@ -88,6 +126,11 @@ function PlayerDataService:Save(player)
 
 	data.Meta.LastSeenAt = os.time()
 	local snapshot = deepCopy(data)
+	local originalCash = testOriginalCash[player]
+	if originalCash ~= nil then
+		snapshot.Cash = originalCash
+	end
+
 	local success, errorMessage = pcall(function()
 		store:SetAsync(dataKey(player), snapshot)
 	end)
@@ -103,6 +146,12 @@ function PlayerDataService:AdjustCash(player, delta)
 	local data = profiles[player]
 	if not data or type(delta) ~= "number" or delta ~= delta then
 		return false, nil
+	end
+
+	if testOriginalCash[player] ~= nil then
+		data.Cash = math.max(1, math.floor(tonumber(GameConfig.TestUnlimitedCash) or 999999999))
+		player:SetAttribute("Cash", data.Cash)
+		return true, data.Cash
 	end
 
 	local nextCash = data.Cash + delta
@@ -188,6 +237,7 @@ function PlayerDataService:Start()
 	Players.PlayerRemoving:Connect(function(player)
 		self:Save(player)
 		profiles[player] = nil
+		testOriginalCash[player] = nil
 	end)
 
 	for _, player in Players:GetPlayers() do
