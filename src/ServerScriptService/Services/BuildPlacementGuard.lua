@@ -4,6 +4,7 @@ local Workspace = game:GetService("Workspace")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local BuildConfig = require(Shared.BuildConfig)
 local BuildCollision = require(Shared.BuildCollision)
+local BuildSnap = require(Shared.BuildSnap)
 
 local BuildPlacementGuard = {}
 local started = false
@@ -58,17 +59,33 @@ local function readPlacedEntries(lotId)
 	return entries
 end
 
-local function validatePlacement(payload)
+local function normalizePlacement(payload)
 	if type(payload) ~= "table" then
-		return false, "Solicitação inválida"
+		return nil, "Solicitação inválida"
 	end
 
 	local lotId = payload.LotId
 	local pieceType = payload.PieceType
-	if type(lotId) ~= "string" or #lotId > 32 or type(pieceType) ~= "string" then
-		return false, "Dados inválidos"
+	local rotation = payload.Rotation
+	if type(lotId) ~= "string" or #lotId > 32 or type(pieceType) ~= "string" or type(rotation) ~= "number" then
+		return nil, "Dados inválidos"
 	end
 
+	local snapped = BuildSnap.SnapGrid(BuildConfig, pieceType, rotation, payload.GridX, payload.GridZ)
+	if not snapped then
+		return nil, "Posição inválida"
+	end
+
+	local normalized = table.clone(payload)
+	normalized.GridX = snapped.GridX
+	normalized.GridZ = snapped.GridZ
+	normalized.Rotation = math.floor(rotation) % 4
+	return normalized, nil
+end
+
+local function validatePlacement(payload)
+	local lotId = payload.LotId
+	local pieceType = payload.PieceType
 	local lot = getLot(lotId)
 	local candidate = BuildCollision.MakeDescriptor(
 		BuildConfig,
@@ -119,18 +136,25 @@ function BuildPlacementGuard:Start()
 	end
 
 	placeRemote.OnServerInvoke = function(player, payload)
-		local lotId = type(payload) == "table" and payload.LotId or nil
-		if type(lotId) ~= "string" or #lotId > 32 then
-			return { Ok = false, Error = "Dados inválidos" }
+		local normalized, normalizeError = normalizePlacement(payload)
+		if not normalized then
+			return { Ok = false, Error = normalizeError }
 		end
 
+		local lotId = normalized.LotId
 		acquireLotLock(lotId)
 		local ok, result = xpcall(function()
-			local valid, errorMessage = validatePlacement(payload)
+			local valid, errorMessage = validatePlacement(normalized)
 			if not valid then
 				return { Ok = false, Error = errorMessage }
 			end
-			return originalHandler(player, payload)
+
+			local response = originalHandler(player, normalized)
+			if type(response) == "table" then
+				response.SnappedGridX = normalized.GridX
+				response.SnappedGridZ = normalized.GridZ
+			end
+			return response
 		end, debug.traceback)
 		releaseLotLock(lotId)
 
@@ -142,7 +166,7 @@ function BuildPlacementGuard:Start()
 		return result
 	end
 
-	print("[Property Empire v2] BuildPlacementGuard started")
+	print("[Property Empire v2] BuildPlacementGuard snap+collision started")
 end
 
 return BuildPlacementGuard
