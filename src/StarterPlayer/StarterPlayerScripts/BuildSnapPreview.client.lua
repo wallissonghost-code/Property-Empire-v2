@@ -23,8 +23,8 @@ local function findLotForPreview(preview)
 	for _, lot in ipairs(lots:GetChildren()) do
 		if lot:IsA("BasePart") and lot:GetAttribute("OwnerUserId") == player.UserId then
 			local localPosition = lot.CFrame:PointToObjectSpace(preview.Position)
-			local insideExtendedBounds = math.abs(localPosition.X) <= lot.Size.X / 2 + 16
-				and math.abs(localPosition.Z) <= lot.Size.Z / 2 + 16
+			local insideExtendedBounds = math.abs(localPosition.X) <= lot.Size.X / 2 + 20
+				and math.abs(localPosition.Z) <= lot.Size.Z / 2 + 20
 			if insideExtendedBounds then
 				local distance = Vector2.new(localPosition.X, localPosition.Z).Magnitude
 				if distance < bestDistance then
@@ -114,12 +114,21 @@ local function updateSnapPreview()
 	)
 	local entries = readPlacedEntries(lot.Name)
 	local localHit = lot.CFrame:PointToObjectSpace(mouse.Hit.Position)
+
+	-- BuildController sends a 2-stud integer grid to the server. Quantize the
+	-- mouse hit the same way here before the magnetic snap so preview and server
+	-- can never choose different connection points near a rounding boundary.
+	local rawGridX = math.round(localHit.X / BuildConfig.GridSize)
+	local rawGridZ = math.round(localHit.Z / BuildConfig.GridSize)
+	local rawLocalX = rawGridX * BuildConfig.GridSize
+	local rawLocalZ = rawGridZ * BuildConfig.GridSize
+
 	local snapped = BuildSnap.SnapLocalPosition(
 		BuildConfig,
 		pieceType,
 		rotation,
-		localHit.X,
-		localHit.Z,
+		rawLocalX,
+		rawLocalZ,
 		entries,
 		level
 	)
@@ -149,11 +158,13 @@ local function updateSnapPreview()
 	preview:SetAttribute("SnapGridX", snapped.GridX)
 	preview:SetAttribute("SnapGridZ", snapped.GridZ)
 	preview:SetAttribute("SnapBlocked", blocked)
+	preview:SetAttribute("SnapConnectionKind", snapped.ConnectionKind or "Grid")
+	preview.Transparency = 0.45
 	preview.Color = blocked and Color3.fromRGB(235, 84, 84) or Color3.fromRGB(80, 220, 120)
 end
 
--- BuildController also updates the preview on RenderStepped. Queue this correction
--- after that event so the authoritative snap/collision visualization wins the frame.
+-- BuildController updates the same ghost on RenderStepped. Defer this pass so
+-- the shared snap/collision rules are always the final visual state of frame.
 RunService.RenderStepped:Connect(function()
 	if updateQueued then
 		return
@@ -162,4 +173,4 @@ RunService.RenderStepped:Connect(function()
 	task.defer(updateSnapPreview)
 end)
 
-print("[Property Empire v2] Adaptive build snap preview started")
+print("[Property Empire v2] Magnetic build snap preview started")
