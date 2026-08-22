@@ -6,6 +6,7 @@ local PlayerDataService = require(Services.PlayerDataService)
 local BusinessService = require(Services.BusinessService)
 local BusinessEconomyService = require(Services.BusinessEconomyService)
 local MiningMuseumService = require(Services.MiningMuseumService)
+local CommerceExpansionService = require(Services.CommerceExpansionService)
 
 local WORLD_NAME = "PropertyEmpireV2World"
 
@@ -39,4 +40,5 @@ end
 
 BusinessEconomyService:Start(PlayerDataService)
 MiningMuseumService:Start(PlayerDataService)
-print("[Property Empire v2] Business systems bootstrap ready")
+CommerceExpansionService:Start(PlayerDataService)
+print("[Property Empire v2] Business systems bootstrap ready: all licensed alpha sectors online")
