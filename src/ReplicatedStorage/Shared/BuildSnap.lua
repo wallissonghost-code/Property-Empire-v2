@@ -64,6 +64,37 @@ local function floorDescriptors(config, entries, level)
 	return floors
 end
 
+local function wallDescriptors(config, entries, level)
+	local walls = {}
+	if type(entries) ~= "table" then
+		return walls
+	end
+
+	for _, entry in ipairs(entries) do
+		if type(entry) == "table"
+			and entry.Level == level
+			and type(entry.GridX) == "number"
+			and type(entry.GridZ) == "number"
+		then
+			local spec = config.Catalog[entry.Type]
+			if spec and spec.Slot == "Wall" then
+				local centerX, centerZ = localCenter(config, entry)
+				local rotation = normalizeRotation(entry.Rotation or 0)
+				local sizeX, sizeZ = rotatedFootprint(spec, rotation)
+				table.insert(walls, {
+					CenterX = centerX,
+					CenterZ = centerZ,
+					SizeX = sizeX,
+					SizeZ = sizeZ,
+					Orientation = rotation % 2,
+				})
+			end
+		end
+	end
+
+	return walls
+end
+
 local function floorCandidateOverlaps(candidateX, candidateZ, sizeX, sizeZ, floors)
 	for _, floor in ipairs(floors) do
 		local overlapX = overlapAmount(candidateX, sizeX, floor.CenterX, floor.SizeX)
@@ -75,27 +106,37 @@ local function floorCandidateOverlaps(candidateX, candidateZ, sizeX, sizeZ, floo
 	return false
 end
 
-local function addUniqueCandidate(candidates, seen, x, z, kind)
-	local key = string.format("%.3f:%.3f", x, z)
+local function addUniqueCandidate(candidates, seen, x, z, kind, priority)
+	local key = string.format("%.3f:%.3f:%s", x, z, kind or "")
 	if seen[key] then
 		return
 	end
 	seen[key] = true
-	table.insert(candidates, { X = x, Z = z, Kind = kind })
+	table.insert(candidates, {
+		X = x,
+		Z = z,
+		Kind = kind or "Grid",
+		Priority = priority or 0,
+	})
 end
 
 local function nearestCandidate(candidates, localX, localZ)
 	local best = nil
+	local bestScore = math.huge
 	local bestDistanceSquared = math.huge
+
 	for _, candidate in ipairs(candidates) do
 		local dx = localX - candidate.X
 		local dz = localZ - candidate.Z
 		local distanceSquared = dx * dx + dz * dz
-		if distanceSquared < bestDistanceSquared then
+		local score = distanceSquared - (candidate.Priority or 0)
+		if score < bestScore then
+			bestScore = score
 			bestDistanceSquared = distanceSquared
 			best = candidate
 		end
 	end
+
 	return best, bestDistanceSquared
 end
 
@@ -121,7 +162,7 @@ local function floorConnectionCandidate(config, spec, rotation, localX, localZ, 
 
 		for _, point in ipairs(possible) do
 			if not floorCandidateOverlaps(point[1], point[2], sizeX, sizeZ, floors) then
-				addUniqueCandidate(candidates, seen, point[1], point[2], "FloorEdge")
+				addUniqueCandidate(candidates, seen, point[1], point[2], "FloorEdge", 1.5)
 			end
 		end
 	end
@@ -130,9 +171,56 @@ local function floorConnectionCandidate(config, spec, rotation, localX, localZ, 
 	return best, distanceSquared, floors
 end
 
+local function addFloorWallCandidates(candidates, seen, floors, orientation)
+	for _, floor in ipairs(floors) do
+		if orientation == 0 then
+			addUniqueCandidate(candidates, seen, floor.CenterX, floor.CenterZ + floor.SizeZ / 2, "FloorEdge", 1)
+			addUniqueCandidate(candidates, seen, floor.CenterX, floor.CenterZ - floor.SizeZ / 2, "FloorEdge", 1)
+		else
+			addUniqueCandidate(candidates, seen, floor.CenterX + floor.SizeX / 2, floor.CenterZ, "FloorEdge", 1)
+			addUniqueCandidate(candidates, seen, floor.CenterX - floor.SizeX / 2, floor.CenterZ, "FloorEdge", 1)
+		end
+	end
+end
+
+local function addWallContinuationCandidates(candidates, seen, walls, orientation, wallSizeX, wallSizeZ)
+	for _, wall in ipairs(walls) do
+		if wall.Orientation == orientation then
+			if orientation == 0 then
+				local deltaX = (wall.SizeX + wallSizeX) / 2
+				addUniqueCandidate(candidates, seen, wall.CenterX + deltaX, wall.CenterZ, "WallEnd", 3)
+				addUniqueCandidate(candidates, seen, wall.CenterX - deltaX, wall.CenterZ, "WallEnd", 3)
+			else
+				local deltaZ = (wall.SizeZ + wallSizeZ) / 2
+				addUniqueCandidate(candidates, seen, wall.CenterX, wall.CenterZ + deltaZ, "WallEnd", 3)
+				addUniqueCandidate(candidates, seen, wall.CenterX, wall.CenterZ - deltaZ, "WallEnd", 3)
+			end
+		else
+			if orientation == 0 then
+				local halfCandidate = wallSizeX / 2
+				local endpointZ1 = wall.CenterZ + wall.SizeZ / 2
+				local endpointZ2 = wall.CenterZ - wall.SizeZ / 2
+				for _, endpointZ in ipairs({ endpointZ1, endpointZ2 }) do
+					addUniqueCandidate(candidates, seen, wall.CenterX + halfCandidate, endpointZ, "WallCorner", 2.5)
+					addUniqueCandidate(candidates, seen, wall.CenterX - halfCandidate, endpointZ, "WallCorner", 2.5)
+				end
+			else
+				local halfCandidate = wallSizeZ / 2
+				local endpointX1 = wall.CenterX + wall.SizeX / 2
+				local endpointX2 = wall.CenterX - wall.SizeX / 2
+				for _, endpointX in ipairs({ endpointX1, endpointX2 }) do
+					addUniqueCandidate(candidates, seen, endpointX, wall.CenterZ + halfCandidate, "WallCorner", 2.5)
+					addUniqueCandidate(candidates, seen, endpointX, wall.CenterZ - halfCandidate, "WallCorner", 2.5)
+				end
+			end
+		end
+	end
+end
+
 local function wallConnectionCandidate(config, spec, rotation, localX, localZ, entries, level)
 	local floors = floorDescriptors(config, entries, level)
-	if #floors == 0 then
+	local walls = wallDescriptors(config, entries, level)
+	if #floors == 0 and #walls == 0 then
 		return nil, nil
 	end
 
@@ -141,22 +229,31 @@ local function wallConnectionCandidate(config, spec, rotation, localX, localZ, e
 	local candidates = {}
 	local seen = {}
 
-	for _, floor in ipairs(floors) do
-		if orientation == 0 then
-			-- Horizontal wall: its center line sits on the north/south floor edge.
-			addUniqueCandidate(candidates, seen, floor.CenterX, floor.CenterZ + floor.SizeZ / 2, "FloorEdge")
-			addUniqueCandidate(candidates, seen, floor.CenterX, floor.CenterZ - floor.SizeZ / 2, "FloorEdge")
-		else
-			-- Vertical wall: its center line sits on the east/west floor edge.
-			addUniqueCandidate(candidates, seen, floor.CenterX + floor.SizeX / 2, floor.CenterZ, "FloorEdge")
-			addUniqueCandidate(candidates, seen, floor.CenterX - floor.SizeX / 2, floor.CenterZ, "FloorEdge")
-		end
+	addFloorWallCandidates(candidates, seen, floors, orientation)
+	addWallContinuationCandidates(candidates, seen, walls, orientation, wallSizeX, wallSizeZ)
+
+	return nearestCandidate(candidates, localX, localZ)
+end
+
+local function stairConnectionCandidate(config, spec, rotation, localX, localZ, entries, level)
+	local floors = floorDescriptors(config, entries, level)
+	if #floors == 0 then
+		return nil, nil
 	end
 
-	-- If future wall lengths differ from one floor tile, keep their midpoint on
-	-- the same floor edge while still allowing the collision layer to reject
-	-- anything that would occupy existing structural volume.
-	local _ = wallSizeX + wallSizeZ
+	local sizeX, sizeZ = rotatedFootprint(spec, rotation)
+	local candidates = {}
+	local seen = {}
+
+	for _, floor in ipairs(floors) do
+		local deltaX = (floor.SizeX + sizeX) / 2
+		local deltaZ = (floor.SizeZ + sizeZ) / 2
+		addUniqueCandidate(candidates, seen, floor.CenterX + deltaX, floor.CenterZ, "StairEdge", 2)
+		addUniqueCandidate(candidates, seen, floor.CenterX - deltaX, floor.CenterZ, "StairEdge", 2)
+		addUniqueCandidate(candidates, seen, floor.CenterX, floor.CenterZ + deltaZ, "StairEdge", 2)
+		addUniqueCandidate(candidates, seen, floor.CenterX, floor.CenterZ - deltaZ, "StairEdge", 2)
+	end
+
 	return nearestCandidate(candidates, localX, localZ)
 end
 
@@ -226,6 +323,21 @@ function BuildSnap.SnapLocalPosition(config, pieceType, rotation, localX, localZ
 		end
 	elseif spec.Slot == "Wall" then
 		local candidate, distanceSquared = wallConnectionCandidate(
+			config,
+			spec,
+			normalizedRotation,
+			localX,
+			localZ,
+			entries,
+			normalizedLevel
+		)
+		if candidate and distanceSquared <= MAGNET_RADIUS * MAGNET_RADIUS then
+			snappedX = candidate.X
+			snappedZ = candidate.Z
+			connectionKind = candidate.Kind
+		end
+	elseif spec.Slot == "Stair" then
+		local candidate, distanceSquared = stairConnectionCandidate(
 			config,
 			spec,
 			normalizedRotation,
