@@ -1,9 +1,12 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local LandConfig = require(Shared:WaitForChild("LandConfig"))
+
 local WORLD_NAME = "PropertyEmpireV2World"
 local CITY_HALL_NAME = "CityHall"
-local AUTHORITY_VERSION = 1
+local AUTHORITY_VERSION = 2
 
 local rebuilding = false
 
@@ -58,7 +61,7 @@ local function addSurfaceText(part, face, text)
 	label.Parent = gui
 end
 
-local function buildPremiumCityHall(world, spawn, openRemote)
+local function buildPremiumCityHall(world, openRemote)
 	if rebuilding then
 		return
 	end
@@ -72,10 +75,13 @@ local function buildPremiumCityHall(world, spawn, openRemote)
 	local model = Instance.new("Model")
 	model.Name = CITY_HALL_NAME
 	model:SetAttribute("PremiumAuthorityVersion", AUTHORITY_VERSION)
+	model:SetAttribute("DistrictName", "Civico")
 	model.Parent = world
 
-	local basePosition = Vector3.new(spawn.Position.X + 118, 0.5, spawn.Position.Z - 52)
-	local origin = CFrame.new(basePosition) * CFrame.Angles(0, math.rad(180), 0)
+	local civic = LandConfig.CivicDistrict
+	local basePosition = civic and civic.CityHallPosition or Vector3.new(0, 0.5, -458)
+	-- Frente voltada para o spawn e para a praça, no sentido +Z.
+	local origin = CFrame.new(basePosition)
 
 	local ivory = Color3.fromRGB(232, 230, 221)
 	local marble = Color3.fromRGB(220, 222, 224)
@@ -84,7 +90,7 @@ local function buildPremiumCityHall(world, spawn, openRemote)
 	local glass = Color3.fromRGB(132, 190, 216)
 	local gold = Color3.fromRGB(190, 151, 70)
 
-	makePart(model, "CivicPlaza", Vector3.new(108, 1, 70), origin * CFrame.new(0, -0.3, 10), marble, Enum.Material.Marble)
+	makePart(model, "Forecourt", Vector3.new(108, 1, 58), origin * CFrame.new(0, -0.3, 13), marble, Enum.Material.Marble)
 	makePart(model, "Foundation", Vector3.new(82, 1, 46), origin, ivory, Enum.Material.Marble)
 	makePart(model, "BackWall", Vector3.new(82, 16, 1), origin * CFrame.new(0, 8, -22.5), ivory, Enum.Material.Concrete)
 	makePart(model, "LeftWall", Vector3.new(1, 16, 46), origin * CFrame.new(-40.5, 8, 0), ivory, Enum.Material.Concrete)
@@ -111,6 +117,7 @@ local function buildPremiumCityHall(world, spawn, openRemote)
 
 	local sign = makePart(model, "MainSign", Vector3.new(30, 4.5, 0.6), origin * CFrame.new(0, 13.2, 23.2), navy, Enum.Material.Metal)
 	addSurfaceText(sign, Enum.NormalId.Front, "PREFEITURA\nPROPERTY EMPIRE")
+	addSurfaceText(sign, Enum.NormalId.Back, "PREFEITURA\nPROPERTY EMPIRE")
 
 	local reception = makePart(model, "LicensingDesk", Vector3.new(16, 3.6, 6), origin * CFrame.new(0, 2.3, -8), charcoal, Enum.Material.WoodPlanks)
 	local deskTrim = makePart(model, "DeskTrim", Vector3.new(16.4, 0.35, 6.4), origin * CFrame.new(0, 4.15, -8), gold, Enum.Material.Metal)
@@ -142,7 +149,7 @@ local function buildPremiumCityHall(world, spawn, openRemote)
 	end
 
 	rebuilding = false
-	print("[Property Empire v2] Premium City Hall authority active")
+	print("[Property Empire v2] Premium City Hall placed inside exclusive civic district")
 end
 
 local world = Workspace:WaitForChild(WORLD_NAME, 30)
@@ -151,16 +158,10 @@ if not world then
 	return
 end
 
-local spawn = world:WaitForChild("MainSpawn", 30)
-if not spawn or not spawn:IsA("BasePart") then
-	warn("[CityHallPremiumAuthority] MainSpawn not found")
-	return
-end
-
 local openRemote = ensureOpenRemote()
 
 task.delay(3, function()
-	buildPremiumCityHall(world, spawn, openRemote)
+	buildPremiumCityHall(world, openRemote)
 end)
 
 world.ChildAdded:Connect(function(child)
@@ -172,7 +173,7 @@ world.ChildAdded:Connect(function(child)
 	end
 	task.delay(1.5, function()
 		if child.Parent == world and child:GetAttribute("PremiumAuthorityVersion") ~= AUTHORITY_VERSION then
-			buildPremiumCityHall(world, spawn, openRemote)
+			buildPremiumCityHall(world, openRemote)
 		end
 	end)
 end)

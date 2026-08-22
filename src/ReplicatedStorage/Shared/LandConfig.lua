@@ -7,7 +7,19 @@ local LandConfig = {
 		Size = Vector3.new(1800, 2, 1600),
 		GroundColor = Color3.fromRGB(92, 118, 82),
 		GroundMaterial = Enum.Material.Grass,
-		SpawnPosition = Vector3.new(0, 0.5, 146),
+		SpawnPosition = Vector3.new(0, 0.5, -280),
+	},
+
+	-- Área pública exclusiva: nenhum lote comprável é gerado dentro deste retângulo.
+	CivicDistrict = {
+		Name = "Civico",
+		DisplayName = "DISTRITO CÍVICO",
+		Center = Vector3.new(0, -0.75, -410),
+		Size = Vector3.new(300, 1, 240),
+		PlazaCenter = Vector3.new(0, -0.45, -392),
+		PlazaSize = Vector3.new(232, 1, 154),
+		CityHallPosition = Vector3.new(0, 0.5, -458),
+		MarkerPosition = Vector3.new(0, 0, -292),
 	},
 
 	-- LOT-01 through LOT-12 deliberately keep their original positions.
@@ -83,6 +95,8 @@ local LandConfig = {
 		{ Name = "LigacaoResidencial", Size = Vector3.new(290, 1, 18), Position = Vector3.new(-335, -0.5, 0) },
 		{ Name = "LigacaoComercial", Size = Vector3.new(290, 1, 18), Position = Vector3.new(335, -0.5, -40) },
 		{ Name = "LigacaoIndustrial", Size = Vector3.new(18, 1, 350), Position = Vector3.new(0, -0.5, 325) },
+		{ Name = "AvenidaCivica", Size = Vector3.new(24, 1, 126), Position = Vector3.new(0, -0.5, -228) },
+		{ Name = "FrenteCivica", Size = Vector3.new(330, 1, 24), Position = Vector3.new(0, -0.5, -290) },
 		{ Name = "LigacaoRural", Size = Vector3.new(18, 1, 335), Position = Vector3.new(-500, -0.5, -330) },
 		{ Name = "LigacaoMineracao", Size = Vector3.new(18, 1, 335), Position = Vector3.new(500, -0.5, -330) },
 	},
