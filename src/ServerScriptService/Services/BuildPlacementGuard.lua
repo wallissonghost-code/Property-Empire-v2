@@ -59,7 +59,7 @@ local function readPlacedEntries(lotId)
 	return entries
 end
 
-local function normalizePlacement(payload)
+local function normalizePlacement(payload, entries)
 	if type(payload) ~= "table" then
 		return nil, "Solicitação inválida"
 	end
@@ -67,11 +67,25 @@ local function normalizePlacement(payload)
 	local lotId = payload.LotId
 	local pieceType = payload.PieceType
 	local rotation = payload.Rotation
-	if type(lotId) ~= "string" or #lotId > 32 or type(pieceType) ~= "string" or type(rotation) ~= "number" then
+	local level = payload.Level
+	if type(lotId) ~= "string"
+		or #lotId > 32
+		or type(pieceType) ~= "string"
+		or type(rotation) ~= "number"
+		or type(level) ~= "number"
+	then
 		return nil, "Dados inválidos"
 	end
 
-	local snapped = BuildSnap.SnapGrid(BuildConfig, pieceType, rotation, payload.GridX, payload.GridZ)
+	local snapped = BuildSnap.SnapGrid(
+		BuildConfig,
+		pieceType,
+		rotation,
+		payload.GridX,
+		payload.GridZ,
+		entries,
+		math.floor(level)
+	)
 	if not snapped then
 		return nil, "Posição inválida"
 	end
@@ -79,11 +93,12 @@ local function normalizePlacement(payload)
 	local normalized = table.clone(payload)
 	normalized.GridX = snapped.GridX
 	normalized.GridZ = snapped.GridZ
+	normalized.Level = math.floor(level)
 	normalized.Rotation = math.floor(rotation) % 4
 	return normalized, nil
 end
 
-local function validatePlacement(payload)
+local function validatePlacement(payload, entries)
 	local lotId = payload.LotId
 	local pieceType = payload.PieceType
 	local lot = getLot(lotId)
@@ -103,7 +118,7 @@ local function validatePlacement(payload)
 		return false, "A peça precisa ficar dentro do lote"
 	end
 
-	local conflict = BuildCollision.HasConflict(BuildConfig, candidate, readPlacedEntries(lotId))
+	local conflict = BuildCollision.HasConflict(BuildConfig, candidate, entries)
 	if conflict then
 		return false, "Outra peça já ocupa esse espaço"
 	end
@@ -136,15 +151,20 @@ function BuildPlacementGuard:Start()
 	end
 
 	placeRemote.OnServerInvoke = function(player, payload)
-		local normalized, normalizeError = normalizePlacement(payload)
-		if not normalized then
-			return { Ok = false, Error = normalizeError }
+		local lotId = type(payload) == "table" and payload.LotId or nil
+		if type(lotId) ~= "string" or #lotId > 32 then
+			return { Ok = false, Error = "Dados inválidos" }
 		end
 
-		local lotId = normalized.LotId
 		acquireLotLock(lotId)
 		local ok, result = xpcall(function()
-			local valid, errorMessage = validatePlacement(normalized)
+			local entries = readPlacedEntries(lotId)
+			local normalized, normalizeError = normalizePlacement(payload, entries)
+			if not normalized then
+				return { Ok = false, Error = normalizeError }
+			end
+
+			local valid, errorMessage = validatePlacement(normalized, entries)
 			if not valid then
 				return { Ok = false, Error = errorMessage }
 			end
@@ -166,7 +186,7 @@ function BuildPlacementGuard:Start()
 		return result
 	end
 
-	print("[Property Empire v2] BuildPlacementGuard snap+collision started")
+	print("[Property Empire v2] BuildPlacementGuard adaptive snap+collision started")
 end
 
 return BuildPlacementGuard
