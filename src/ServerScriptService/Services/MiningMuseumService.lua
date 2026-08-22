@@ -865,6 +865,11 @@ local function attachPromptToSign(sign)
 		return
 	end
 
+	local initialActive = getActiveBusiness(sign.Name)
+	if not initialActive or not isSupportedBusinessType(initialActive.BusinessType) then
+		return
+	end
+
 	if not sign:GetAttribute("MiningMuseumPromptBound") then
 		sign:SetAttribute("MiningMuseumPromptBound", true)
 		sign.ChildAdded:Connect(function(child)
