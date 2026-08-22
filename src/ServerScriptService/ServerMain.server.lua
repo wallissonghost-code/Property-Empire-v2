@@ -1,23 +1,14 @@
-local Services = script.Parent:WaitForChild("Services")
+local Services=script.Parent:WaitForChild("Services")
+local WorldService=require(Services.WorldService)
+local DataService=require(Services.DataService)
+local MuseumService=require(Services.MuseumService)
+local MiningService=require(Services.MiningService)
+local VisitorService=require(Services.VisitorService)
 
-local PlayerDataService = require(Services.PlayerDataService)
-local LandService = require(Services.LandService)
-local BuildService = require(Services.BuildService)
-local BuildPlacementGuard = require(Services.BuildPlacementGuard)
+WorldService:Start()
+DataService:Start()
+MuseumService:Start(DataService,WorldService)
+MiningService:Start(DataService,WorldService,MuseumService)
+VisitorService:Start(DataService,WorldService,MuseumService)
 
-local started = false
-
-local function startServer()
-	if started then
-		return
-	end
-	started = true
-
-	PlayerDataService:Start()
-	LandService:Start(PlayerDataService)
-	BuildService:Start(PlayerDataService)
-	BuildPlacementGuard:Start()
-	print("[Property Empire v2] Core server started")
-end
-
-startServer()
+print("[Museum Empire] Server ready — clean rebuild v1")
