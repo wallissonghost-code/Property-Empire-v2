@@ -86,11 +86,11 @@ local function setLabelText(part, record)
 	end
 
 	if record.State == "Owned" then
-		label.Text = string.format("%s\nPROPRIEDADE DE #%d", part.Name, record.OwnerUserId)
+		label.Text = string.format("%s · PROPRIETÁRIO #%d", part.Name, record.OwnerUserId)
 	elseif isPendingActive(record) then
-		label.Text = string.format("%s\nCOMPRA EM PROCESSAMENTO", part.Name)
+		label.Text = string.format("%s · PROCESSANDO", part.Name)
 	else
-		label.Text = string.format("%s\nDISPONÍVEL · %s", part.Name, formatMoney(record.Price))
+		label.Text = string.format("%s · %s", part.Name, formatMoney(record.Price))
 	end
 end
 
@@ -159,7 +159,7 @@ local function reserveLot(lotId, userId)
 
 			if current.State == "Owned" then
 				return current
-		end
+			end
 
 			if isPendingActive(current) and current.ReservedBy ~= userId then
 				return current
@@ -282,14 +282,15 @@ end
 local function createBillboard(part)
 	local billboard = Instance.new("BillboardGui")
 	billboard.Name = "StatusBillboard"
-	billboard.Size = UDim2.fromOffset(260, 64)
-	billboard.StudsOffset = Vector3.new(0, 6, 0)
-	billboard.AlwaysOnTop = true
+	billboard.Size = UDim2.fromOffset(190, 34)
+	billboard.StudsOffsetWorldSpace = Vector3.new(0, 2.6, part.Size.Z / 2 - 6)
+	billboard.AlwaysOnTop = false
+	billboard.MaxDistance = 42
 	billboard.Parent = part
 
 	local label = Instance.new("TextLabel")
 	label.Name = "StatusLabel"
-	label.BackgroundTransparency = 0.2
+	label.BackgroundTransparency = 0.18
 	label.BackgroundColor3 = Color3.fromRGB(20, 24, 29)
 	label.TextColor3 = Color3.fromRGB(245, 245, 245)
 	label.TextScaled = true
@@ -298,14 +299,14 @@ local function createBillboard(part)
 	label.Parent = billboard
 
 	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 8)
+	corner.CornerRadius = UDim.new(0, 7)
 	corner.Parent = label
 end
 
 local function createPrompt(part, lotId)
 	local attachment = Instance.new("Attachment")
 	attachment.Name = "PromptAttachment"
-	attachment.Position = Vector3.new(0, 3, 0)
+	attachment.Position = Vector3.new(0, 3, part.Size.Z / 2 - 7)
 	attachment.Parent = part
 
 	local prompt = Instance.new("ProximityPrompt")
@@ -320,51 +321,101 @@ local function createPrompt(part, lotId)
 	end)
 end
 
-local function createWorld()
-	local previous = Workspace:FindFirstChild("PropertyEmpireV2World")
-	if previous then
-		previous:Destroy()
+local function createFlatPart(parent, name, size, position, color, material)
+	local part = Instance.new("Part")
+	part.Name = name
+	part.Anchored = true
+	part.Size = size
+	part.Position = position
+	part.Color = color
+	part.Material = material
+	part.TopSurface = Enum.SurfaceType.Smooth
+	part.BottomSurface = Enum.SurfaceType.Smooth
+	part.Parent = parent
+	return part
+end
+
+local function createAreaMarker(parent, name, displayName, position)
+	local anchor = Instance.new("Part")
+	anchor.Name = name .. "Marker"
+	anchor.Anchored = true
+	anchor.CanCollide = false
+	anchor.CanTouch = false
+	anchor.CanQuery = false
+	anchor.Transparency = 1
+	anchor.Size = Vector3.new(1, 1, 1)
+	anchor.Position = position + Vector3.new(0, 8, 0)
+	anchor.Parent = parent
+
+	local billboard = Instance.new("BillboardGui")
+	billboard.Size = UDim2.fromOffset(210, 38)
+	billboard.AlwaysOnTop = false
+	billboard.MaxDistance = 260
+	billboard.Parent = anchor
+
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.fromScale(1, 1)
+	label.BackgroundColor3 = Color3.fromRGB(25, 30, 36)
+	label.BackgroundTransparency = 0.15
+	label.Text = displayName
+	label.TextColor3 = Color3.fromRGB(245, 247, 250)
+	label.TextScaled = true
+	label.Font = Enum.Font.GothamBold
+	label.Parent = billboard
+
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 8)
+	corner.Parent = label
+end
+
+local function createRoadNetwork(world)
+	local roadsFolder = Instance.new("Folder")
+	roadsFolder.Name = "Roads"
+	roadsFolder.Parent = world
+
+	for _, road in ipairs(LandConfig.Roads) do
+		createFlatPart(
+			roadsFolder,
+			road.Name,
+			road.Size,
+			road.Position,
+			Color3.fromRGB(48, 51, 54),
+			Enum.Material.Concrete
+		)
 	end
+end
 
-	local world = Instance.new("Folder")
-	world.Name = "PropertyEmpireV2World"
-	world.Parent = Workspace
+local function createReservedZones(world)
+	local zonesFolder = Instance.new("Folder")
+	zonesFolder.Name = "ReservedZones"
+	zonesFolder.Parent = world
 
-	local district = LandConfig.StarterDistrict
+	for _, zone in ipairs(LandConfig.ReservedZones) do
+		local pad = createFlatPart(zonesFolder, zone.Name, zone.Size, zone.Center, zone.Color, zone.Material)
+		pad:SetAttribute("ZoneName", zone.Name)
+		pad:SetAttribute("ReservedForFutureSystems", true)
+
+		local markerPosition = Vector3.new(
+			zone.Center.X,
+			0,
+			zone.Center.Z - zone.Size.Z / 2 + 28
+		)
+		createAreaMarker(zonesFolder, zone.Name, zone.DisplayName, markerPosition)
+	end
+end
+
+local function createDistrictLots(world, lotsFolder, district)
 	local lotSize = district.LotSize
 	local width = district.Columns * lotSize.X + (district.Columns - 1) * district.Spacing
 	local depth = district.Rows * lotSize.Z + (district.Rows - 1) * district.Spacing
-
-	local ground = Instance.new("Part")
-	ground.Name = "Ground"
-	ground.Anchored = true
-	ground.Size = Vector3.new(width + district.GroundPadding * 2, 2, depth + district.GroundPadding * 2)
-	ground.Position = Vector3.new(0, -1.5, 0)
-	ground.Material = Enum.Material.Concrete
-	ground.Color = Color3.fromRGB(86, 91, 94)
-	ground.Parent = world
-
-	local spawn = Instance.new("SpawnLocation")
-	spawn.Name = "MainSpawn"
-	spawn.Anchored = true
-	spawn.Neutral = true
-	spawn.Size = Vector3.new(16, 1, 16)
-	spawn.Position = Vector3.new(0, 0.5, depth / 2 + 24)
-	spawn.Material = Enum.Material.SmoothPlastic
-	spawn.Color = Color3.fromRGB(85, 170, 255)
-	spawn.Parent = world
-
-	local lotsFolder = Instance.new("Folder")
-	lotsFolder.Name = "Lots"
-	lotsFolder.Parent = world
-
-	local startX = -width / 2 + lotSize.X / 2
-	local startZ = -depth / 2 + lotSize.Z / 2
-	local index = 0
+	local startX = district.Origin.X - width / 2 + lotSize.X / 2
+	local startZ = district.Origin.Z - depth / 2 + lotSize.Z / 2
+	local localIndex = 0
 
 	for row = 1, district.Rows do
 		for column = 1, district.Columns do
-			index += 1
+			localIndex += 1
+			local index = district.FirstLotIndex + localIndex - 1
 			local lotId = string.format("LOT-%02d", index)
 			local lot = Instance.new("Part")
 			lot.Name = lotId
@@ -378,6 +429,7 @@ local function createWorld()
 			lot.Material = Enum.Material.Grass
 			lot.TopSurface = Enum.SurfaceType.Smooth
 			lot.BottomSurface = Enum.SurfaceType.Smooth
+			lot:SetAttribute("DistrictName", district.Name)
 			lot.Parent = lotsFolder
 			lotParts[lotId] = lot
 
@@ -386,10 +438,73 @@ local function createWorld()
 			applyRecordToPart(lot, makeAvailableRecord(lotId))
 		end
 	end
+
+	createAreaMarker(world, district.Name, district.DisplayName, district.Origin + district.MarkerOffset)
+end
+
+local function createWorld()
+	local previous = Workspace:FindFirstChild("PropertyEmpireV2World")
+	if previous then
+		previous:Destroy()
+	end
+	table.clear(lotParts)
+
+	local world = Instance.new("Folder")
+	world.Name = "PropertyEmpireV2World"
+	world:SetAttribute("WorldVersion", 2)
+	world.Parent = Workspace
+
+	local worldConfig = LandConfig.World
+	createFlatPart(
+		world,
+		"Ground",
+		worldConfig.Size,
+		Vector3.new(0, -1.5, 0),
+		worldConfig.GroundColor,
+		worldConfig.GroundMaterial
+	)
+
+	createRoadNetwork(world)
+	createReservedZones(world)
+
+	local plaza = createFlatPart(
+		world,
+		"CivicPlaza",
+		Vector3.new(150, 1, 78),
+		Vector3.new(0, -0.45, 145),
+		Color3.fromRGB(157, 158, 154),
+		Enum.Material.Concrete
+	)
+	plaza:SetAttribute("CivicArea", true)
+
+	local spawn = Instance.new("SpawnLocation")
+	spawn.Name = "MainSpawn"
+	spawn.Anchored = true
+	spawn.Neutral = true
+	spawn.Size = Vector3.new(16, 1, 16)
+	spawn.Position = worldConfig.SpawnPosition
+	spawn.Material = Enum.Material.SmoothPlastic
+	spawn.Color = Color3.fromRGB(85, 170, 255)
+	spawn.Parent = world
+
+	local lotsFolder = Instance.new("Folder")
+	lotsFolder.Name = "Lots"
+	lotsFolder.Parent = world
+
+	for _, district in ipairs(LandConfig.Districts) do
+		createDistrictLots(world, lotsFolder, district)
+	end
 end
 
 local function loadPersistentOwners()
-	for lotId, part in pairs(lotParts) do
+	local lotIds = {}
+	for lotId in pairs(lotParts) do
+		table.insert(lotIds, lotId)
+	end
+	table.sort(lotIds)
+
+	for index, lotId in ipairs(lotIds) do
+		local part = lotParts[lotId]
 		local record = loadLotRecord(lotId)
 		if record then
 			applyRecordToPart(part, record)
@@ -401,6 +516,11 @@ local function loadPersistentOwners()
 			if prompt then
 				prompt.Enabled = false
 			end
+		end
+
+		-- Avoid hammering the DataStore budget as the city gains more lots.
+		if index % 4 == 0 then
+			task.wait(0.08)
 		end
 	end
 end
@@ -414,7 +534,12 @@ function LandService:Start(dataService)
 
 	createWorld()
 	loadPersistentOwners()
-	print("[Property Empire v2] LandService started with 12 starter lots")
+
+	local lotCount = 0
+	for _ in pairs(lotParts) do
+		lotCount += 1
+	end
+	print(string.format("[Property Empire v2] LandService started with %d lots across expanded city districts", lotCount))
 end
 
 return LandService
