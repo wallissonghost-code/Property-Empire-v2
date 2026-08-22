@@ -33,6 +33,10 @@ local function isFloorAndWall(slotA, slotB)
 	return (slotA == "Floor" and slotB == "Wall") or (slotA == "Wall" and slotB == "Floor")
 end
 
+local function isFloorAndStair(slotA, slotB)
+	return (slotA == "Floor" and slotB == "Stair") or (slotA == "Stair" and slotB == "Floor")
+end
+
 local function perpendicularWallJoinIsValid(candidate, existing)
 	local horizontal = candidate.Orientation == 0 and candidate or existing
 	local vertical = candidate.Orientation == 1 and candidate or existing
@@ -117,9 +121,10 @@ function BuildCollision.Conflicts(candidate, existing)
 	local slotA = candidate.Slot
 	local slotB = existing.Slot
 
-	-- Floor and wall are structural layers of the same level and are allowed
-	-- to meet because walls originate on top of the floor slab.
-	if isFloorAndWall(slotA, slotB) then
+	-- Floors are the structural base for walls and stairs. Both are allowed to
+	-- share the floor footprint; every other overlap still goes through the
+	-- regular collision rules below.
+	if isFloorAndWall(slotA, slotB) or isFloorAndStair(slotA, slotB) then
 		return false
 	end
 
@@ -135,9 +140,7 @@ function BuildCollision.Conflicts(candidate, existing)
 		return not perpendicularWallJoinIsValid(candidate, existing)
 	end
 
-	-- Floor-floor, floor-stair, stair-stair and stair-wall shared volume are
-	-- blocked. A staircase therefore requires an actual opening in the floor
-	-- instead of being embedded inside an existing slab.
+	-- Floor-floor, stair-stair and stair-wall shared volume remain blocked.
 	return true
 end
 
