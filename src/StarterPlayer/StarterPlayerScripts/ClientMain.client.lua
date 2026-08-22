@@ -26,6 +26,7 @@ local function startController(moduleName)
 end
 
 startController("BuildController")
+startController("BuildPolishController")
 startController("BusinessController")
 startController("BusinessEconomyController")
 
