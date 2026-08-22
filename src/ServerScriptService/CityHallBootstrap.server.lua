@@ -36,68 +36,83 @@ local function ensureOpenRemote()
 	return remote
 end
 
-local function addFrontSign(parent, origin)
-	local sign = createPart(
-		parent,
-		"FrontSign",
-		Vector3.new(20, 4, 0.6),
-		origin * CFrame.new(0, 10.5, 15.35),
-		Color3.fromRGB(38, 57, 78),
-		Enum.Material.SmoothPlastic
-	)
-
+local function addSurfaceText(part, face, text, color)
 	local gui = Instance.new("SurfaceGui")
-	gui.Face = Enum.NormalId.Front
+	gui.Face = face
 	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
-	gui.PixelsPerStud = 40
-	gui.Parent = sign
+	gui.PixelsPerStud = 42
+	gui.Parent = part
 
 	local label = Instance.new("TextLabel")
 	label.Size = UDim2.fromScale(1, 1)
 	label.BackgroundTransparency = 1
-	label.Text = "PREFEITURA\nLICENÇAS"
-	label.TextColor3 = Color3.fromRGB(245, 248, 252)
+	label.Text = text
+	label.TextColor3 = color
 	label.TextScaled = true
 	label.TextWrapped = true
 	label.Font = Enum.Font.GothamBold
 	label.Parent = gui
 end
 
-local function addLocator(parent, origin)
-	local anchor = createPart(
+local function addWarmLight(part, brightness, range)
+	local light = Instance.new("PointLight")
+	light.Color = Color3.fromRGB(255, 224, 176)
+	light.Brightness = brightness or 1.5
+	light.Range = range or 18
+	light.Shadows = true
+	light.Parent = part
+end
+
+local function addFrontIdentity(parent, origin)
+	local navy = Color3.fromRGB(30, 48, 70)
+	local gold = Color3.fromRGB(205, 169, 88)
+	local white = Color3.fromRGB(244, 246, 248)
+
+	local sign = createPart(
 		parent,
-		"Locator",
-		Vector3.new(1, 1, 1),
-		origin * CFrame.new(0, 17, 0),
-		Color3.fromRGB(70, 140, 220),
-		Enum.Material.Neon
+		"FacadeIdentity",
+		Vector3.new(28, 3.2, 0.45),
+		origin * CFrame.new(0, 13.7, 20.25),
+		navy,
+		Enum.Material.SmoothPlastic
 	)
-	anchor.Transparency = 1
-	anchor.CanCollide = false
-	anchor.CanTouch = false
-	anchor.CanQuery = false
+	sign.CanCollide = false
+	addSurfaceText(sign, Enum.NormalId.Front, "PREFEITURA · PROPERTY EMPIRE", white)
 
-	local billboard = Instance.new("BillboardGui")
-	billboard.Name = "CityHallLocator"
-	billboard.Size = UDim2.fromOffset(210, 46)
-	billboard.StudsOffset = Vector3.new(0, 1.5, 0)
-	billboard.AlwaysOnTop = false
-	billboard.MaxDistance = 220
-	billboard.Parent = anchor
+	local seal = createPart(
+		parent,
+		"CivicSeal",
+		Vector3.new(4.4, 4.4, 0.55),
+		origin * CFrame.new(0, 17.2, 20.2),
+		gold,
+		Enum.Material.Metal
+	)
+	seal.CanCollide = false
+end
 
-	local label = Instance.new("TextLabel")
-	label.Size = UDim2.fromScale(1, 1)
-	label.BackgroundColor3 = Color3.fromRGB(28, 39, 52)
-	label.BackgroundTransparency = 0.18
-	label.Text = "PREFEITURA"
-	label.TextColor3 = Color3.fromRGB(245, 248, 252)
-	label.TextScaled = true
-	label.Font = Enum.Font.GothamBold
-	label.Parent = billboard
+local function addSideDirectory(parent, origin)
+	-- The old floating locator sat directly in the entrance sightline. The new
+	-- directory lives beside the building and is intentionally non-collidable.
+	local post = createPart(
+		parent,
+		"DirectoryPost",
+		Vector3.new(1.2, 5, 1.2),
+		origin * CFrame.new(-39, 2.5, 22),
+		Color3.fromRGB(48, 55, 64),
+		Enum.Material.Metal
+	)
+	post.CanCollide = false
 
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 8)
-	corner.Parent = label
+	local board = createPart(
+		parent,
+		"DirectoryBoard",
+		Vector3.new(13, 5.5, 0.6),
+		origin * CFrame.new(-39, 5.6, 22),
+		Color3.fromRGB(30, 48, 70),
+		Enum.Material.SmoothPlastic
+	)
+	board.CanCollide = false
+	addSurfaceText(board, Enum.NormalId.Front, "PREFEITURA\nLICENÇAS", Color3.fromRGB(245, 247, 250))
 end
 
 local function buildCityHall(world, spawn, openRemote)
@@ -108,66 +123,158 @@ local function buildCityHall(world, spawn, openRemote)
 
 	local model = Instance.new("Model")
 	model.Name = CITY_HALL_NAME
-	model:SetAttribute("BootstrapVersion", 2)
+	model:SetAttribute("BootstrapVersion", 3)
+	model:SetAttribute("PremiumFacade", true)
 	model.Parent = world
 
-	-- Fixed, visible location in the open plaza to the right of the main spawn.
-	local basePosition = Vector3.new(spawn.Position.X + 72, 0.5, spawn.Position.Z - 12)
+	-- Move the building farther south of the original lots. With the 180-degree
+	-- rotation the entrance faces back toward the spawn/civic plaza.
+	local basePosition = Vector3.new(spawn.Position.X + 80, 0.5, spawn.Position.Z + 58)
 	local origin = CFrame.new(basePosition) * CFrame.Angles(0, math.rad(180), 0)
 
-	local stone = Color3.fromRGB(218, 216, 207)
-	local trim = Color3.fromRGB(52, 78, 105)
-	local glass = Color3.fromRGB(149, 196, 218)
-	local dark = Color3.fromRGB(45, 52, 61)
+	local ivory = Color3.fromRGB(226, 224, 217)
+	local marble = Color3.fromRGB(237, 237, 232)
+	local navy = Color3.fromRGB(39, 61, 84)
+	local dark = Color3.fromRGB(42, 47, 54)
+	local glass = Color3.fromRGB(144, 194, 218)
+	local gold = Color3.fromRGB(202, 169, 92)
 
-	createPart(model, "Foundation", Vector3.new(58, 1, 30), origin, stone, Enum.Material.Concrete)
-	createPart(model, "BackWall", Vector3.new(58, 12, 1), origin * CFrame.new(0, 6, -14.5), stone, Enum.Material.Concrete)
-	createPart(model, "LeftWall", Vector3.new(1, 12, 30), origin * CFrame.new(-28.5, 6, 0), stone, Enum.Material.Concrete)
-	createPart(model, "RightWall", Vector3.new(1, 12, 30), origin * CFrame.new(28.5, 6, 0), stone, Enum.Material.Concrete)
+	-- Forecourt and three shallow steps create a clear, wide arrival path.
+	createPart(model, "Forecourt", Vector3.new(82, 0.6, 22), origin * CFrame.new(0, -0.2, 29), ivory, Enum.Material.Concrete)
+	createPart(model, "StepLow", Vector3.new(24, 0.35, 5), origin * CFrame.new(0, 0.05, 23.5), marble, Enum.Material.Marble)
+	createPart(model, "StepMid", Vector3.new(21, 0.35, 4), origin * CFrame.new(0, 0.3, 21), marble, Enum.Material.Marble)
+	createPart(model, "StepHigh", Vector3.new(18, 0.35, 3), origin * CFrame.new(0, 0.55, 18.8), marble, Enum.Material.Marble)
 
-	createPart(model, "FrontLeft", Vector3.new(20, 12, 1), origin * CFrame.new(-19, 6, 14.5), stone, Enum.Material.Concrete)
-	createPart(model, "FrontRight", Vector3.new(20, 12, 1), origin * CFrame.new(19, 6, 14.5), stone, Enum.Material.Concrete)
-	createPart(model, "FrontLintel", Vector3.new(18, 4, 1), origin * CFrame.new(0, 10, 14.5), trim, Enum.Material.Concrete)
-	createPart(model, "DoorTop", Vector3.new(10, 2, 0.35), origin * CFrame.new(0, 9, 14.2), glass, Enum.Material.Glass)
+	createPart(model, "Foundation", Vector3.new(70, 1, 40), origin, marble, Enum.Material.Marble)
+	createPart(model, "LobbyFloor", Vector3.new(64, 0.35, 34), origin * CFrame.new(0, 0.65, 0), dark, Enum.Material.Marble)
 
-	createPart(model, "WindowLeft", Vector3.new(11, 6, 0.35), origin * CFrame.new(-19, 6, 14.2), glass, Enum.Material.Glass)
-	createPart(model, "WindowRight", Vector3.new(11, 6, 0.35), origin * CFrame.new(19, 6, 14.2), glass, Enum.Material.Glass)
+	-- Main shell: taller and wider than the prototype, with a 14-stud clear entrance.
+	createPart(model, "BackWall", Vector3.new(70, 16, 1), origin * CFrame.new(0, 8, -19.5), ivory, Enum.Material.Concrete)
+	createPart(model, "LeftWall", Vector3.new(1, 16, 40), origin * CFrame.new(-34.5, 8, 0), ivory, Enum.Material.Concrete)
+	createPart(model, "RightWall", Vector3.new(1, 16, 40), origin * CFrame.new(34.5, 8, 0), ivory, Enum.Material.Concrete)
+	createPart(model, "FrontLeft", Vector3.new(25, 16, 1), origin * CFrame.new(-22.5, 8, 19.5), ivory, Enum.Material.Concrete)
+	createPart(model, "FrontRight", Vector3.new(25, 16, 1), origin * CFrame.new(22.5, 8, 19.5), ivory, Enum.Material.Concrete)
+	createPart(model, "EntryLintel", Vector3.new(20, 5, 1), origin * CFrame.new(0, 13.5, 19.5), navy, Enum.Material.Marble)
 
-	createPart(model, "Roof", Vector3.new(62, 1, 34), origin * CFrame.new(0, 12.5, 0), trim, Enum.Material.Slate)
-	createPart(model, "Steps", Vector3.new(14, 1, 8), origin * CFrame.new(0, 0, 18.5), stone, Enum.Material.Concrete)
-	createPart(model, "ColumnLeft", Vector3.new(2, 11, 2), origin * CFrame.new(-8, 5.5, 15.5), trim, Enum.Material.Marble)
-	createPart(model, "ColumnRight", Vector3.new(2, 11, 2), origin * CFrame.new(8, 5.5, 15.5), trim, Enum.Material.Marble)
+	-- Premium glass facade sections.
+	for _, x in ipairs({ -23, -13, 13, 23 }) do
+		local window = createPart(
+			model,
+			"FrontWindow" .. tostring(x),
+			Vector3.new(8, 9, 0.35),
+			origin * CFrame.new(x, 8, 19.15),
+			glass,
+			Enum.Material.Glass
+		)
+		window.Transparency = 0.28
+	end
 
+	for _, z in ipairs({ -10, 3, 14 }) do
+		local leftWindow = createPart(
+			model,
+			"LeftWindow" .. tostring(z),
+			Vector3.new(0.35, 8, 8),
+			origin * CFrame.new(-34.15, 8, z),
+			glass,
+			Enum.Material.Glass
+		)
+		leftWindow.Transparency = 0.3
+
+		local rightWindow = createPart(
+			model,
+			"RightWindow" .. tostring(z),
+			Vector3.new(0.35, 8, 8),
+			origin * CFrame.new(34.15, 8, z),
+			glass,
+			Enum.Material.Glass
+		)
+		rightWindow.Transparency = 0.3
+	end
+
+	-- Double glass doors are decorative/non-collidable so the entrance can never
+	-- be blocked by the facade itself.
+	for _, x in ipairs({ -3.4, 3.4 }) do
+		local door = createPart(
+			model,
+			"GlassDoor" .. tostring(x),
+			Vector3.new(6.2, 9, 0.3),
+			origin * CFrame.new(x, 5.2, 19.25),
+			glass,
+			Enum.Material.Glass
+		)
+		door.Transparency = 0.45
+		door.CanCollide = false
+		door.CanTouch = false
+	end
+
+	-- Marble portico and layered roof/cornice.
+	createPart(model, "ColumnLeftOuter", Vector3.new(2.4, 15, 2.4), origin * CFrame.new(-10, 7.5, 20.4), marble, Enum.Material.Marble)
+	createPart(model, "ColumnLeftInner", Vector3.new(1.8, 13, 1.8), origin * CFrame.new(-7, 6.5, 20.1), marble, Enum.Material.Marble)
+	createPart(model, "ColumnRightInner", Vector3.new(1.8, 13, 1.8), origin * CFrame.new(7, 6.5, 20.1), marble, Enum.Material.Marble)
+	createPart(model, "ColumnRightOuter", Vector3.new(2.4, 15, 2.4), origin * CFrame.new(10, 7.5, 20.4), marble, Enum.Material.Marble)
+	createPart(model, "PorticoBeam", Vector3.new(25, 2, 3), origin * CFrame.new(0, 15.7, 20.3), marble, Enum.Material.Marble)
+	createPart(model, "Roof", Vector3.new(74, 1.2, 44), origin * CFrame.new(0, 16.6, 0), navy, Enum.Material.Slate)
+	createPart(model, "Cornice", Vector3.new(78, 0.7, 48), origin * CFrame.new(0, 17.4, 0), marble, Enum.Material.Marble)
+	createPart(model, "RoofCrown", Vector3.new(30, 2, 8), origin * CFrame.new(0, 18.5, 3), navy, Enum.Material.Slate)
+
+	-- Reception interior, positioned well behind the entrance corridor.
 	local desk = createPart(
 		model,
 		"LicensingDesk",
-		Vector3.new(10, 3.5, 5),
-		origin * CFrame.new(0, 2.25, -5),
+		Vector3.new(14, 3.6, 5),
+		origin * CFrame.new(0, 2.55, -8),
 		dark,
 		Enum.Material.WoodPlanks
 	)
+	createPart(model, "DeskAccent", Vector3.new(10, 0.5, 5.15), origin * CFrame.new(0, 4.45, -8), gold, Enum.Material.Metal)
+	createPart(model, "ReceptionBackdrop", Vector3.new(22, 8, 0.5), origin * CFrame.new(0, 5, -18.8), navy, Enum.Material.Marble)
+
+	local backdropText = createPart(
+		model,
+		"ReceptionText",
+		Vector3.new(14, 2.2, 0.2),
+		origin * CFrame.new(0, 6, -18.45),
+		gold,
+		Enum.Material.Metal
+	)
+	backdropText.CanCollide = false
+	addSurfaceText(backdropText, Enum.NormalId.Back, "LICENÇAS EMPRESARIAIS", Color3.fromRGB(250, 244, 224))
 
 	local attachment = Instance.new("Attachment")
 	attachment.Name = "LicensePromptAttachment"
-	attachment.Position = Vector3.new(0, 2.6, 0)
+	attachment.Position = Vector3.new(0, 2.7, 0)
 	attachment.Parent = desk
 
 	local prompt = Instance.new("ProximityPrompt")
 	prompt.ActionText = "Solicitar licença"
 	prompt.ObjectText = "Prefeitura"
 	prompt.HoldDuration = 0.25
-	prompt.MaxActivationDistance = 12
+	prompt.MaxActivationDistance = 13
 	prompt.RequiresLineOfSight = false
 	prompt.Parent = attachment
 	prompt.Triggered:Connect(function(player)
 		openRemote:FireClient(player)
 	end)
 
-	addFrontSign(model, origin)
-	addLocator(model, origin)
+	-- Warm architectural lighting instead of a floating locator over the doorway.
+	for _, x in ipairs({ -15, 15 }) do
+		local sconce = createPart(
+			model,
+			"Sconce" .. tostring(x),
+			Vector3.new(0.8, 1.6, 0.8),
+			origin * CFrame.new(x, 9, 20.1),
+			gold,
+			Enum.Material.Neon
+		)
+		sconce.CanCollide = false
+		addWarmLight(sconce, 1.8, 20)
+	end
+
+	addFrontIdentity(model, origin)
+	addSideDirectory(model, origin)
 
 	print(string.format(
-		"[Property Empire v2] City Hall bootstrap created at %.1f, %.1f, %.1f",
+		"[Property Empire v2] Premium City Hall created at %.1f, %.1f, %.1f",
 		basePosition.X,
 		basePosition.Y,
 		basePosition.Z

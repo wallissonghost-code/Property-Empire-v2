@@ -3,7 +3,9 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
-local BuildConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("BuildConfig"))
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local BuildConfig = require(Shared:WaitForChild("BuildConfig"))
+local BuildCollision = require(Shared:WaitForChild("BuildCollision"))
 
 local BuildController = {}
 
@@ -23,6 +25,7 @@ local currentLevel = 0
 local currentRotation = 0
 local preview = nil
 local previewValid = false
+local previewBlockReason = nil
 local previewGridX = 0
 local previewGridZ = 0
 local placing = false
@@ -472,6 +475,44 @@ local function findBuildRoot(target)
 	return nil
 end
 
+local function readPlacedEntries()
+	local entries = {}
+	if not selectedLot then
+		return entries
+	end
+
+	local world = workspace:FindFirstChild("PropertyEmpireV2World")
+	local builds = world and world:FindFirstChild("Builds")
+	local lotFolder = builds and builds:FindFirstChild(selectedLot.Name)
+	if not lotFolder then
+		return entries
+	end
+
+	for _, root in ipairs(lotFolder:GetChildren()) do
+		local pieceType = root:GetAttribute("PieceType")
+		local gridX = root:GetAttribute("GridX")
+		local gridZ = root:GetAttribute("GridZ")
+		local level = root:GetAttribute("Level")
+		local rotation = root:GetAttribute("Rotation")
+		if type(pieceType) == "string"
+			and type(gridX) == "number"
+			and type(gridZ) == "number"
+			and type(level) == "number"
+			and type(rotation) == "number"
+		then
+			table.insert(entries, {
+				Type = pieceType,
+				GridX = gridX,
+				GridZ = gridZ,
+				Level = level,
+				Rotation = rotation,
+			})
+		end
+	end
+
+	return entries
+end
+
 local function updateRemovalTarget()
 	if not removalHighlight then
 		return
@@ -494,6 +535,7 @@ end
 local function updatePreview()
 	if not buildMode or not selectedLot then
 		previewValid = false
+		previewBlockReason = nil
 		if preview then
 			preview.Transparency = 1
 		end
@@ -506,6 +548,7 @@ local function updatePreview()
 
 	if removeMode then
 		previewValid = false
+		previewBlockReason = nil
 		if preview then
 			preview.Transparency = 1
 		end
@@ -535,6 +578,23 @@ local function updatePreview()
 	local maxX = selectedLot.Size.X / 2 - BuildConfig.BoundaryMargin
 	local maxZ = selectedLot.Size.Z / 2 - BuildConfig.BoundaryMargin
 	previewValid = math.abs(centerX) + sizeX / 2 <= maxX and math.abs(centerZ) + sizeZ / 2 <= maxZ
+	previewBlockReason = previewValid and nil or "A peça precisa ficar dentro do lote"
+
+	if previewValid then
+		local candidate = BuildCollision.MakeDescriptor(
+			BuildConfig,
+			selectedPieceType,
+			previewGridX,
+			previewGridZ,
+			currentLevel,
+			currentRotation
+		)
+		local hasConflict = candidate and BuildCollision.HasConflict(BuildConfig, candidate, readPlacedEntries()) or true
+		if hasConflict then
+			previewValid = false
+			previewBlockReason = "Outra peça já ocupa esse espaço"
+		end
+	end
 
 	preview.Transparency = 0.5
 	preview.Color = previewValid and Color3.fromRGB(80, 220, 120) or Color3.fromRGB(235, 84, 84)
@@ -549,7 +609,7 @@ function BuildController:PlaceCurrentPreview()
 		return
 	end
 	if not previewValid then
-		setStatus("A peça precisa ficar dentro do lote", true)
+		setStatus(previewBlockReason or "A posição da peça é inválida", true)
 		return
 	end
 
@@ -716,7 +776,7 @@ function BuildController:Start()
 	player:GetAttributeChangedSignal("Cash"):Connect(updateCashLabel)
 
 	RunService.RenderStepped:Connect(updatePreview)
-	print("[Property Empire v2] BuildController v2 started")
+	print("[Property Empire v2] BuildController v3 started")
 end
 
 return BuildController

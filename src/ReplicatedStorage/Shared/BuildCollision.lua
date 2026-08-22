@@ -1,8 +1,7 @@
 local BuildCollision = {}
 
 local EPSILON = 0.01
-local WALL_JOIN_END_TOLERANCE = 0.55
-local WALL_JOIN_THICKNESS_TOLERANCE = 1.05
+local WALL_ENDPOINT_TOLERANCE = 0.55
 
 local function isFiniteNumber(value)
 	return type(value) == "number" and value == value and value > -math.huge and value < math.huge
@@ -36,6 +35,27 @@ end
 
 local function isFloorAndStair(slotA, slotB)
 	return (slotA == "Floor" and slotB == "Stair") or (slotA == "Stair" and slotB == "Floor")
+end
+
+local function perpendicularWallJoinIsValid(candidate, existing)
+	local horizontal = candidate.Orientation == 0 and candidate or existing
+	local vertical = candidate.Orientation == 1 and candidate or existing
+
+	-- Their center lines intersect at this point in lot-local coordinates.
+	local intersectionX = vertical.CenterX
+	local intersectionZ = horizontal.CenterZ
+
+	local horizontalHalfLength = horizontal.SizeX / 2
+	local verticalHalfLength = vertical.SizeZ / 2
+	local horizontalDistanceFromCenter = math.abs(intersectionX - horizontal.CenterX)
+	local verticalDistanceFromCenter = math.abs(intersectionZ - vertical.CenterZ)
+
+	-- A perpendicular join is legal only when at least one wall reaches the
+	-- intersection with its endpoint. This preserves L/T joins while blocking
+	-- two walls crossing through each other's middle.
+	local horizontalAtEndpoint = horizontalHalfLength - horizontalDistanceFromCenter <= WALL_ENDPOINT_TOLERANCE
+	local verticalAtEndpoint = verticalHalfLength - verticalDistanceFromCenter <= WALL_ENDPOINT_TOLERANCE
+	return horizontalAtEndpoint or verticalAtEndpoint
 end
 
 function BuildCollision.MakeDescriptor(config, pieceType, gridX, gridZ, level, rotation)
@@ -93,7 +113,7 @@ function BuildCollision.Conflicts(candidate, existing)
 	local overlapX = overlapAmount(candidate.CenterX, candidate.SizeX, existing.CenterX, existing.SizeX)
 	local overlapZ = overlapAmount(candidate.CenterZ, candidate.SizeZ, existing.CenterZ, existing.SizeZ)
 
-	-- Encostar na borda é permitido. Só volume interno compartilhado conta como colisão.
+	-- Touching at the outer boundary is valid. Shared internal volume is not.
 	if overlapX <= EPSILON or overlapZ <= EPSILON then
 		return false
 	end
@@ -101,30 +121,29 @@ function BuildCollision.Conflicts(candidate, existing)
 	local slotA = candidate.Slot
 	local slotB = existing.Slot
 
-	-- Piso e parede formam a estrutura do mesmo andar e podem coexistir.
+	-- Floor and wall are structural layers of the same level.
 	if isFloorAndWall(slotA, slotB) then
 		return false
 	end
 
-	-- A escada pode nascer sobre o piso do andar de origem e terminar no piso seguinte.
+	-- Stairs may originate/terminate through a floor slab by design.
 	if isFloorAndStair(slotA, slotB) then
 		return false
 	end
 
 	if slotA == "Wall" and slotB == "Wall" then
-		-- Paredes perpendiculares podem se encontrar somente na ponta/canto.
-		-- Isso permite L e T sem permitir uma parede atravessar outra pelo meio.
-		if candidate.Orientation ~= existing.Orientation then
-			local shallowOverlap = math.min(overlapX, overlapZ)
-			local thickOverlap = math.max(overlapX, overlapZ)
-			if shallowOverlap <= WALL_JOIN_END_TOLERANCE and thickOverlap <= WALL_JOIN_THICKNESS_TOLERANCE then
-				return false
-			end
+		-- Parallel wall-like pieces (wall/door/window/premium wall) may touch at
+		-- their ends, but may never share length on the same wall line.
+		if candidate.Orientation == existing.Orientation then
+			return true
 		end
-		return true
+
+		-- Perpendicular walls can make an L or T join, but cannot cross through
+		-- the middle of both segments.
+		return not perpendicularWallJoinIsValid(candidate, existing)
 	end
 
-	-- Piso com piso, escada com escada e escada atravessando parede são bloqueados.
+	-- Floor-floor, stair-stair and stair-wall shared volume remain blocked.
 	return true
 end
 
