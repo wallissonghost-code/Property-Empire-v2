@@ -73,6 +73,8 @@ local function normalizePlacement(payload, entries)
 		or type(pieceType) ~= "string"
 		or type(rotation) ~= "number"
 		or type(level) ~= "number"
+		or type(payload.GridX) ~= "number"
+		or type(payload.GridZ) ~= "number"
 	then
 		return nil, "Dados inválidos"
 	end
@@ -95,16 +97,15 @@ local function normalizePlacement(payload, entries)
 	normalized.GridZ = snapped.GridZ
 	normalized.Level = math.floor(level)
 	normalized.Rotation = math.floor(rotation) % 4
+	normalized.ConnectionKind = snapped.ConnectionKind or "Grid"
 	return normalized, nil
 end
 
 local function validatePlacement(payload, entries)
-	local lotId = payload.LotId
-	local pieceType = payload.PieceType
-	local lot = getLot(lotId)
+	local lot = getLot(payload.LotId)
 	local candidate = BuildCollision.MakeDescriptor(
 		BuildConfig,
-		pieceType,
+		payload.PieceType,
 		payload.GridX,
 		payload.GridZ,
 		payload.Level,
@@ -173,6 +174,7 @@ function BuildPlacementGuard:Start()
 			if type(response) == "table" then
 				response.SnappedGridX = normalized.GridX
 				response.SnappedGridZ = normalized.GridZ
+				response.SnapConnectionKind = normalized.ConnectionKind
 			end
 			return response
 		end, debug.traceback)
@@ -186,7 +188,7 @@ function BuildPlacementGuard:Start()
 		return result
 	end
 
-	print("[Property Empire v2] BuildPlacementGuard adaptive snap+collision started")
+	print("[Property Empire v2] Premium BuildPlacementGuard v3 started")
 end
 
 return BuildPlacementGuard
