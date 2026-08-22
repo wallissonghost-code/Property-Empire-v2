@@ -30,5 +30,6 @@ startController("BuildPolishController")
 startController("BusinessController")
 startController("BusinessEconomyController")
 startController("MiningMuseumController")
+startController("CommerceExpansionController")
 
 print(string.format("[Property Empire v2] Client bootstrap started for %s", localPlayer.Name))
