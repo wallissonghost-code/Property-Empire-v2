@@ -70,7 +70,7 @@ platform.Name = "MiningEmpireBootPlatform"
 platform.Anchored = true
 platform.Size = Vector3.new(90, 2, 90)
 platform.Position = Vector3.new(0, 18, -500)
-platform.Material = Enum.Material.Slate
+platform.Material = "Slate"
 platform.Color = Color3.fromRGB(55, 62, 72)
 platform.Parent = workspace
 
@@ -81,7 +81,7 @@ spawn.Neutral = true
 spawn.Size = Vector3.new(12, 1, 12)
 spawn.Position = Vector3.new(0, 20, -500)
 spawn.Transparency = 0.25
-spawn.Material = Enum.Material.Neon
+spawn.Material = "Neon"
 spawn.Color = Color3.fromRGB(44, 164, 96)
 spawn.Parent = workspace
 
@@ -93,7 +93,7 @@ local StarterGui = game:GetService("StarterGui")
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 local SAFE = CFrame.new(0, 24, -500)
-local BUILD = "BOOT CLEAN 18:21"
+local BUILD = "BOOT CLEAN 18:25"
 
 local function marker()
 	local gui = playerGui:FindFirstChild("MiningEmpireBootMarker")
