@@ -17,10 +17,13 @@ if [ "$ACTUAL_UPSTREAM" != "$EXPECTED_UPSTREAM" ]; then
   exit 1
 fi
 
-cp "$SOURCE_PLACE" "$OUTPUT_PLACE"
+if ! command -v rbxmk >/dev/null 2>&1; then
+  echo "rbxmk is required to customize the Roblox place" >&2
+  exit 1
+fi
 
-# All future binary/place transformations for Mining Empire belong here.
-# The upstream submodule remains untouched so license provenance stays auditable.
+rbxmk run scripts/customize-place.rbxmk.lua "$SOURCE_PLACE" "$OUTPUT_PLACE"
 
-echo "Prepared $OUTPUT_PLACE from licensed upstream $ACTUAL_UPSTREAM"
+test -f "$OUTPUT_PLACE"
+echo "Prepared customized $OUTPUT_PLACE from licensed upstream $ACTUAL_UPSTREAM"
 ls -lh "$OUTPUT_PLACE"
