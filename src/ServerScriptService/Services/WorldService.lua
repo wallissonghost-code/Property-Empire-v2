@@ -1,4 +1,5 @@
 local Workspace = game:GetService("Workspace")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local WorldService = {}
 local started = false
@@ -17,6 +18,68 @@ local function part(parent, name, size, cf, color, material)
 	p.BottomSurface = Enum.SurfaceType.Smooth
 	p.Parent = parent
 	return p
+end
+
+local function addTravelator(parent, name, z)
+	local belt = part(parent, name, Vector3.new(690, 0.45, 10), CFrame.new(0, 0.4, z), Color3.fromRGB(52, 86, 92), Enum.Material.Metal)
+	belt:SetAttribute("Travelator", true)
+	belt:SetAttribute("BoostWalkSpeed", 28)
+
+	local gui = Instance.new("SurfaceGui")
+	gui.Face = Enum.NormalId.Top
+	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	gui.PixelsPerStud = 18
+	gui.Parent = belt
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.fromScale(1, 1)
+	label.BackgroundTransparency = 1
+	label.Text = "»  »  »  MUSEUM WALK  »  »  »  MUSEUM WALK  »  »  »  MUSEUM WALK  »  »  »"
+	label.TextColor3 = Color3.fromRGB(211, 238, 238)
+	label.Font = Enum.Font.GothamBold
+	label.TextScaled = true
+	label.Parent = gui
+
+	local active = {}
+	belt.Touched:Connect(function(hit)
+		if hit.Name ~= "HumanoidRootPart" then return end
+		local humanoid = hit.Parent and hit.Parent:FindFirstChildOfClass("Humanoid")
+		if not humanoid or active[humanoid] then return end
+		active[humanoid] = humanoid.WalkSpeed
+		humanoid.WalkSpeed = math.max(humanoid.WalkSpeed, 28)
+	end)
+	belt.TouchEnded:Connect(function(hit)
+		if hit.Name ~= "HumanoidRootPart" then return end
+		local humanoid = hit.Parent and hit.Parent:FindFirstChildOfClass("Humanoid")
+		if not humanoid or active[humanoid] == nil then return end
+		local original = active[humanoid]
+		active[humanoid] = nil
+		if humanoid.Parent and humanoid.WalkSpeed <= 28 then humanoid.WalkSpeed = original end
+	end)
+	return belt
+end
+
+local function setupReturnRemote()
+	local remotes = ReplicatedStorage:FindFirstChild("MuseumRemotes")
+	if not remotes then
+		remotes = Instance.new("Folder")
+		remotes.Name = "MuseumRemotes"
+		remotes.Parent = ReplicatedStorage
+	end
+	local remote = remotes:FindFirstChild("ReturnToMuseum")
+	if not remote then
+		remote = Instance.new("RemoteFunction")
+		remote.Name = "ReturnToMuseum"
+		remote.Parent = remotes
+	end
+	remote.OnServerInvoke = function(player)
+		if not world then return false, "Cidade carregando" end
+		local museum = world:FindFirstChild("Museum_" .. player.UserId)
+		local floor = museum and museum:FindFirstChild("Floor")
+		local character = player.Character
+		if not floor or not character then return false, "Seu museu ainda está carregando" end
+		character:PivotTo(floor.CFrame * CFrame.new(0, 4, floor.Size.Z / 2 + 8))
+		return true, "Você voltou ao seu museu"
+	end
 end
 
 function WorldService:Start()
@@ -51,6 +114,13 @@ function WorldService:Start()
 		end
 	end
 
+	local travelators = Instance.new("Folder")
+	travelators.Name = "MuseumTravelators"
+	travelators.Parent = world
+	addTravelator(travelators, "TravelatorRow1", -128)
+	addTravelator(travelators, "TravelatorRow2", 122)
+	addTravelator(travelators, "TravelatorRow3", 352)
+
 	local mine = Instance.new("Folder")
 	mine.Name = "MineNodes"
 	mine.Parent = world
@@ -60,13 +130,12 @@ function WorldService:Start()
 		rock.Shape = Enum.PartType.Ball
 	end
 
-	print("[Museum Empire] Clean world generated")
+	setupReturnRemote()
+	print("[Museum Empire] World generated with museum travelators")
 end
 
 function WorldService:GetWorld() return world end
 function WorldService:GetSlots() return slots end
-function WorldService:GetMineNodes()
-	return world and world:FindFirstChild("MineNodes")
-end
+function WorldService:GetMineNodes() return world and world:FindFirstChild("MineNodes") end
 
 return WorldService
