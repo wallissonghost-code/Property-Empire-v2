@@ -1,0 +1,6 @@
+place_id=138523274489009
+universe_id=10715548183
+source_commit=118b8bf96723aeed652751522e8246c22b87e6b0
+upstream_commit=d5c8b41ca8ed9f1bd91176ec397e8dff9a259130
+published_at_utc=2026-08-23T20:06:04Z
+status=accepted_by_roblox_open_cloud
