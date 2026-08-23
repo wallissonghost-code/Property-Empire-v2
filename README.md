@@ -1,18 +1,42 @@
-# Mining Empire — base open-source
+# Mining Empire
 
-Este repositório foi substituído por uma base limpa usando o projeto open-source **Miner's Haven** de Andrew Bereza como ponto de partida técnico.
+Base de desenvolvimento Roblox para **Mining Empire**.
+
+O projeto usa como fundação técnica o código open-source de **Miner's Haven**, criado por Andrew Bereza e distribuído sob **Apache License 2.0**.
+
+## Identidade do jogo
+
+- Nome do projeto: **Mining Empire**
+- A marca `Miner's Haven` não faz parte da identidade comercial deste jogo.
+- Todo conteúdo novo, interface, progressão, monetização, museu e direção visual serão próprios do Mining Empire.
+
+## Base técnica licenciada
 
 - Upstream: https://github.com/berezaa/minershaven
-- Licença upstream: Apache License 2.0
-- O nome e a marca **Miner's Haven** não devem ser usados comercialmente como identidade do nosso jogo.
-- O jogo final deve usar identidade, nome, arte e conteúdo próprios.
+- Revisão fixada: `d5c8b41ca8ed9f1bd91176ec397e8dff9a259130`
+- Licença: Apache License 2.0
+- Créditos e avisos de terceiros devem ser preservados conforme a licença.
 
-O código upstream é incluído como submódulo em `minershaven/` e o arquivo `minershaven.rbxl` é publicado automaticamente no Place configurado pelo workflow.
+O upstream permanece isolado no submódulo `minershaven/`. Isso permite manter a origem auditável e evita misturar código de terceiros com as nossas alterações.
 
-## Deploy
+## Roblox
 
-Pushes em `main` com `[DEPLOY_ROBLOX]` no commit publicam `minershaven/minershaven.rbxl` via Roblox Open Cloud no Universe `10715548183`, Place `138523274489009`.
+Deploy configurado para:
 
-## Próxima etapa
+- Universe: `10715548183`
+- Place: `138523274489009`
 
-Renomear, remover branding antigo, revisar monetização/DataStores remanescentes e adaptar a mineração para a identidade do novo jogo antes de lançamento público.
+Commits em `main` contendo `[DEPLOY_ROBLOX]` publicam a base no Roblox via Open Cloud.
+
+## Fase atual
+
+A base original está instalada e publicada. A partir deste ponto a customização será feita em camadas próprias do Mining Empire, priorizando:
+
+1. remoção/substituição de branding antigo;
+2. auditoria de DataStores, monetização e serviços externos;
+3. mineração e progressão próprias;
+4. integração do museu;
+5. UI mobile própria;
+6. balanceamento e otimização.
+
+Veja `CUSTOMIZATION_PLAN.md` e `THIRD_PARTY_NOTICES.md`.
