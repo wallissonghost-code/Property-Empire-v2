@@ -1,0 +1,9 @@
+Museum Empire gameplay expansion foundation
+- physical Roblox R15 staff
+- shop/passive sales
+- security and robbery incidents
+- missions and rewards
+- achievements
+- prestige ranking data
+- random museum events
+- missions UI
