@@ -4,10 +4,6 @@ set -euo pipefail
 UPSTREAM_DIR="minershaven"
 SOURCE_PLACE="$UPSTREAM_DIR/minershaven.rbxl"
 OUTPUT_PLACE="Mining-Empire.rbxl"
-TEMP1="Mining-Empire.stage1.rbxl"
-TEMP2="Mining-Empire.stage2.rbxl"
-TEMP3="Mining-Empire.stage3.rbxl"
-TEMP4="Mining-Empire.stage4.rbxl"
 EXPECTED_UPSTREAM="d5c8b41ca8ed9f1bd91176ec397e8dff9a259130"
 
 if [ ! -f "$SOURCE_PLACE" ]; then
@@ -22,18 +18,13 @@ if [ "$ACTUAL_UPSTREAM" != "$EXPECTED_UPSTREAM" ]; then
 fi
 
 if ! command -v rbxmk >/dev/null 2>&1; then
-  echo "rbxmk is required to customize the Roblox place" >&2
+  echo "rbxmk is required to prepare the Roblox place" >&2
   exit 1
 fi
 
-rm -f "$TEMP1" "$TEMP2" "$TEMP3" "$TEMP4" "$OUTPUT_PLACE"
-rbxmk run scripts/customize-place.rbxmk.lua "$SOURCE_PLACE" "$TEMP1"
-rbxmk run scripts/add-visitors.rbxmk.lua "$TEMP1" "$TEMP2"
-rbxmk run scripts/fix-entry.rbxmk.lua "$TEMP2" "$TEMP3"
-rbxmk run scripts/fix-safe-hud-v2.rbxmk.lua "$TEMP3" "$TEMP4"
-rbxmk run scripts/harden-boot.rbxmk.lua "$TEMP4" "$OUTPUT_PLACE"
-rm -f "$TEMP1" "$TEMP2" "$TEMP3" "$TEMP4"
+rm -f "$OUTPUT_PLACE"
+rbxmk run scripts/emergency-safe-mode.rbxmk.lua "$SOURCE_PLACE" "$OUTPUT_PLACE"
 
 test -f "$OUTPUT_PLACE"
-echo "Prepared hardened Mining Empire $OUTPUT_PLACE from licensed upstream $ACTUAL_UPSTREAM"
+echo "Prepared Mining Empire emergency SAFE MODE from licensed upstream $ACTUAL_UPSTREAM"
 ls -lh "$OUTPUT_PLACE"
