@@ -15,7 +15,7 @@ jobs:
     env:
       UNIVERSE_ID: "10757803326"
       PLACE_ID: "115967612388956"
-      ROBLOX_API_KEY: ${{ secrets.Property_empire }}
+      ROBLOX_API_KEY: ${{ secrets.MUSEU_EMPIRE_API_KEY }}
 
     steps:
       - name: Checkout current project
