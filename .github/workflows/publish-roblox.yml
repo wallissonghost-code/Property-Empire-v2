@@ -1,0 +1,117 @@
+name: Publish Museu Empire to Roblox
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && contains(github.event.head_commit.message, '[DEPLOY_ROBLOX]')) }}
+    runs-on: ubuntu-latest
+    env:
+      UNIVERSE_ID: "10757803326"
+      PLACE_ID: "115967612388956"
+      ROBLOX_API_KEY: ${{ secrets.Property_empire }}
+
+    steps:
+      - name: Checkout current project
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          submodules: false
+
+      - name: Verify inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$ROBLOX_API_KEY"
+          test -f scripts/current-place.rbxmk.lua
+          test -f scripts/prepare-place.sh
+
+      - name: Check Roblox target
+        shell: bash
+        run: |
+          set -u
+          mkdir -p .deploy
+          UNIVERSE_HTTP=$(curl -sS -o /tmp/universe.json -w "%{http_code}" \
+            -H "x-api-key: $ROBLOX_API_KEY" \
+            "https://apis.roblox.com/cloud/v2/universes/${UNIVERSE_ID}" || true)
+          PLACE_HTTP=$(curl -sS -o /tmp/place.json -w "%{http_code}" \
+            -H "x-api-key: $ROBLOX_API_KEY" \
+            "https://apis.roblox.com/cloud/v2/universes/${UNIVERSE_ID}/places/${PLACE_ID}" || true)
+          cat > .deploy/roblox-diagnostics.txt <<EOF
+          checked_at_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          universe_id=${UNIVERSE_ID}
+          place_id=${PLACE_ID}
+          universe_http=${UNIVERSE_HTTP}
+          place_http=${PLACE_HTTP}
+          universe_response=$(tr '\n' ' ' < /tmp/universe.json 2>/dev/null | head -c 1200)
+          place_response=$(tr '\n' ' ' < /tmp/place.json 2>/dev/null | head -c 1200)
+          EOF
+          cat .deploy/roblox-diagnostics.txt
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.x'
+          cache: false
+
+      - name: Install rbxmk
+        shell: bash
+        run: |
+          set -euo pipefail
+          go install github.com/anaminus/rbxmk/rbxmk@v0.9.1
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
+      - name: Prepare clean place
+        shell: bash
+        run: |
+          chmod +x scripts/prepare-place.sh
+          ./scripts/prepare-place.sh
+          test -s Museu-Empire.rbxl
+
+      - name: Publish Museu Empire
+        shell: bash
+        run: |
+          set -euo pipefail
+          HTTP_CODE=$(curl -sS -o publish-response.txt -w "%{http_code}" \
+            -X POST \
+            -H "x-api-key: $ROBLOX_API_KEY" \
+            -H "Content-Type: application/octet-stream" \
+            --data-binary @Museu-Empire.rbxl \
+            "https://apis.roblox.com/universes/v1/${UNIVERSE_ID}/places/${PLACE_ID}/versions?versionType=Published")
+          echo "publish_http=$HTTP_CODE"
+          cat publish-response.txt || true
+          if [ "$HTTP_CODE" -lt 200 ] || [ "$HTTP_CODE" -ge 300 ]; then
+            exit 1
+          fi
+
+      - name: Record successful publish
+        shell: bash
+        run: |
+          mkdir -p .deploy
+          cat > .deploy/last-publish.txt <<EOF
+          project=Museu Empire
+          place_id=${PLACE_ID}
+          universe_id=${UNIVERSE_ID}
+          source_commit=${GITHUB_SHA}
+          build=clean-from-scratch
+          artifact=Museu-Empire.rbxl
+          transformer=rbxmk-v0.9.1
+          published_at_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          status=accepted_by_roblox_open_cloud
+          EOF
+
+      - name: Commit publish records
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .deploy/last-publish.txt .deploy/roblox-diagnostics.txt
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "chore: record Museu Empire publish"
+          git push
