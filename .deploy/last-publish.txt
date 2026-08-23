@@ -1,9 +1,9 @@
 project=Mining Empire
 place_id=138523274489009
 universe_id=10715548183
-source_commit=d5e6cd379e6d5078451df16737f4157490b70ff7
+source_commit=8114950f759f146e8187e0b859cc3fd43607721f
 upstream_commit=d5c8b41ca8ed9f1bd91176ec397e8dff9a259130
 artifact=Mining-Empire.rbxl
 transformer=rbxmk-v0.9.1
-published_at_utc=2026-08-23T20:25:59Z
+published_at_utc=2026-08-23T20:45:23Z
 status=accepted_by_roblox_open_cloud
