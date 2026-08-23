@@ -76,6 +76,22 @@ jobs:
             exit 1
           fi
 
+      - name: Restart Roblox universe servers
+        shell: bash
+        run: |
+          set -euo pipefail
+          HTTP_CODE=$(curl -sS -o restart-response.txt -w "%{http_code}" \
+            -X POST \
+            -H "x-api-key: $ROBLOX_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d '{}' \
+            "https://apis.roblox.com/cloud/v2/universes/${UNIVERSE_ID}:restartServers")
+          echo "restart_http=$HTTP_CODE"
+          cat restart-response.txt || true
+          if [ "$HTTP_CODE" -lt 200 ] || [ "$HTTP_CODE" -ge 300 ]; then
+            echo "Universe restart request was not accepted; continuing so publish diagnostics remain available."
+          fi
+
       - name: Record successful publish
         shell: bash
         run: |
