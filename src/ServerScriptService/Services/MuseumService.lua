@@ -5,6 +5,7 @@ local HttpService = game:GetService("HttpService")
 local Catalog = require(ReplicatedStorage.Shared.ArtifactCatalog)
 local GameConfig = require(ReplicatedStorage.Shared.GameConfig)
 local MuseumConfig = require(ReplicatedStorage.Shared.MuseumConfig)
+local BuildCatalog = require(ReplicatedStorage.Shared.BuildCatalog)
 
 local MuseumService = {}
 
@@ -171,13 +172,16 @@ function MuseumService:Render(player)
 	models[player] = model
 
 	local level = profile.Museum.Level
-	local width = 54 + level * 9
-	local depth = 42 + level * 7
+	local moduleSize = 8
+	local width = 40 + (level - 1) * moduleSize
+	local depth = 32 + (level - 1) * moduleSize
+	local wallHeight = BuildCatalog.FloorHeight
+	local wallCenterY = wallHeight / 2
 
 	makePart(model, "Floor", Vector3.new(width, 1, depth), base * CFrame.new(0, 0.6, 0), Color3.fromRGB(214, 211, 202), Enum.Material.Marble)
-	makePart(model, "BackWall", Vector3.new(width, 14, 1), base * CFrame.new(0, 7, -depth / 2), Color3.fromRGB(235, 233, 226))
-	makePart(model, "LeftWall", Vector3.new(1, 14, depth), base * CFrame.new(-width / 2, 7, 0), Color3.fromRGB(235, 233, 226))
-	makePart(model, "RightWall", Vector3.new(1, 14, depth), base * CFrame.new(width / 2, 7, 0), Color3.fromRGB(235, 233, 226))
+	makePart(model, "BackWall", Vector3.new(width, wallHeight, 1), base * CFrame.new(0, wallCenterY, -depth / 2), Color3.fromRGB(235, 233, 226))
+	makePart(model, "LeftWall", Vector3.new(1, wallHeight, depth), base * CFrame.new(-width / 2, wallCenterY, 0), Color3.fromRGB(235, 233, 226))
+	makePart(model, "RightWall", Vector3.new(1, wallHeight, depth), base * CFrame.new(width / 2, wallCenterY, 0), Color3.fromRGB(235, 233, 226))
 
 	local sign = makePart(model, "MuseumSign", Vector3.new(18, 4, 1), base * CFrame.new(0, 5, depth / 2 - 1), Color3.fromRGB(28, 31, 37), Enum.Material.Metal)
 	addBillboard(sign, string.format("%s\nMUSEU · NÍVEL %d · PRESTÍGIO %d", player.DisplayName, level, self:GetScore(player)), 280)
