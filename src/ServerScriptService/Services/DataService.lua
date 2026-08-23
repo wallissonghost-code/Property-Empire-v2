@@ -15,9 +15,19 @@ local function defaultProfile()
 		Museum = {
 			Level = 1,
 			BuildPieces = {},
+			RatingXP = 0,
 		},
 		Artifacts = {},
-		Stats = { Mined = 0, Visits = 0, VisitorRevenue = 0, Sales = 0, Purchases = 0 },
+		Stats = {
+			Mined = 0,
+			Visits = 0,
+			VisitorRevenue = 0,
+			VIPVisits = 0,
+			CollectorVisits = 0,
+			BestVisitRevenue = 0,
+			Sales = 0,
+			Purchases = 0,
+		},
 	}
 end
 
@@ -27,6 +37,7 @@ local function reconcile(p)
 	p.Cash = math.max(0, math.floor(tonumber(p.Cash) or d.Cash))
 	if type(p.Museum) ~= "table" then p.Museum = d.Museum end
 	p.Museum.Level = math.clamp(math.floor(tonumber(p.Museum.Level) or 1), 1, 5)
+	p.Museum.RatingXP = math.max(0, math.floor(tonumber(p.Museum.RatingXP) or 0))
 	if type(p.Museum.BuildPieces) ~= "table" then p.Museum.BuildPieces = {} end
 	local cleanPieces = {}
 	for _, piece in ipairs(p.Museum.BuildPieces) do
@@ -65,6 +76,9 @@ local function sync(player)
 	if not p then return end
 	local cash = tester(player) and Config.TesterCash or p.Cash
 	player:SetAttribute("Cash", cash)
+	player:SetAttribute("MuseumLevel", p.Museum.Level)
+	player:SetAttribute("MuseumVisits", p.Stats.Visits or 0)
+	player:SetAttribute("MuseumRevenue", p.Stats.VisitorRevenue or 0)
 	local leaderstats = player:FindFirstChild("leaderstats")
 	local cashValue = leaderstats and leaderstats:FindFirstChild("Cash")
 	if cashValue then cashValue.Value = math.min(cash, 2147483647) end
@@ -84,6 +98,7 @@ end
 
 function DataService:Get(player) return profiles[player] end
 function DataService:IsTester(player) return tester(player) end
+function DataService:Sync(player) sync(player) end
 function DataService:Wait(player, seconds)
 	local deadline = os.clock() + (seconds or 10)
 	while player.Parent and not profiles[player] and os.clock() < deadline do task.wait() end
