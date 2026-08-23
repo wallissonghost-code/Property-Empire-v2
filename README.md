@@ -1,29 +1,25 @@
 # Mining Empire
 
-Estado atual do repositório: **build estéril de diagnóstico** para Roblox.
-
-O pipeline publica somente um place mínimo, sem sistemas antigos do jogo, usado para diagnosticar o problema de provisionamento/entrada de servidor.
+Estado atual: **build mínimo criado do zero**, sem herdar nenhum `.rbxl` antigo.
 
 ## Arquivos ativos
 
-- `scripts/sterile-place.rbxmk.lua` — gera o place mínimo atual.
-- `scripts/prepare-place.sh` — prepara o arquivo `Mining-Empire.rbxl`.
-- `.github/workflows/publish-roblox.yml` — publica via Roblox Open Cloud e reinicia os servidores do Universe.
+- `scripts/current-place.rbxmk.lua` — cria um DataModel novo do zero.
+- `scripts/prepare-place.sh` — gera `Mining-Empire.rbxl`.
+- `.github/workflows/publish-roblox.yml` — audita o Universe/Place, publica via Open Cloud e solicita reinício dos servidores.
 - `.deploy/last-publish.txt` — registra a última publicação aceita.
+- `.deploy/roblox-diagnostics.txt` — registra a configuração retornada pelas APIs do Roblox.
 
 ## Roblox
 
 - Universe: `10715548183`
-- Place: `138523274489009`
+- Root Place configurado: `138523274489009`
+- Server size retornado pelo Cloud API: `50`
 
-Commits contendo `[DEPLOY_ROBLOX]` disparam a publicação automática.
+## Diagnóstico atual
 
-## Base licenciada
+O DataModel atual foi publicado com sucesso a partir de um arquivo novo. O Roblox Cloud API confirma que o Place configurado é o root do Universe.
 
-O submódulo `minershaven/` permanece apenas como fonte licenciada de um DataModel de entrada para o `rbxmk`; o transformer atual remove todo o conteúdo do place antes de gerar o build estéril.
+A auditoria também encontrou que o Universe está com `visibility=PRIVATE`. A tentativa do workflow de ativá-lo pelo endpoint legado retornou `403 Forbidden`, indicando que a credencial atual não possui essa permissão específica.
 
-Upstream: `berezaa/minershaven`  
-Revisão: `d5c8b41ca8ed9f1bd91176ec397e8dff9a259130`  
-Licença: Apache License 2.0
-
-Os avisos de terceiros permanecem em `THIRD_PARTY_NOTICES.md`.
+Enquanto essa configuração de acesso não for alterada no Roblox, a experiência pode continuar presa em "Aguardando um servidor disponível" mesmo com um place válido.
