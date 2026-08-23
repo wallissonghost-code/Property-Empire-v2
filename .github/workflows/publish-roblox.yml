@@ -1,6 +1,6 @@
 name: Publish Mining Empire to Roblox
 
-# retry-after-universe-write-scope
+# retry-after-secret-update-2026-08-23-2013
 on:
   push:
     branches: [main]
