@@ -1,13 +1,18 @@
-# Museum Empire — clean rebuild
+# Mining Empire — base open-source
 
-A Roblox game built around one idea: create the most valuable museum in the city.
+Este repositório foi substituído por uma base limpa usando o projeto open-source **Miner's Haven** de Andrew Bereza como ponto de partida técnico.
 
-Core loop:
-1. Mine and discover unique artifacts.
-2. Keep them in inventory or put them on display.
-3. Rare exhibits increase museum prestige and NPC visitor revenue.
-4. Displayed items can be locked or listed for sale.
-5. Real players can buy listed exhibits and move them into their own museums.
-6. Expand the museum to unlock more display stands and attract more visitors.
+- Upstream: https://github.com/berezaa/minershaven
+- Licença upstream: Apache License 2.0
+- O nome e a marca **Miner's Haven** não devem ser usados comercialmente como identidade do nosso jogo.
+- O jogo final deve usar identidade, nome, arte e conteúdo próprios.
 
-The project was rebuilt from a clean repository tree. Old Property Empire systems are intentionally not part of this codebase.
+O código upstream é incluído como submódulo em `minershaven/` e o arquivo `minershaven.rbxl` é publicado automaticamente no Place configurado pelo workflow.
+
+## Deploy
+
+Pushes em `main` com `[DEPLOY_ROBLOX]` no commit publicam `minershaven/minershaven.rbxl` via Roblox Open Cloud no Universe `10715548183`, Place `138523274489009`.
+
+## Próxima etapa
+
+Renomear, remover branding antigo, revisar monetização/DataStores remanescentes e adaptar a mineração para a identidade do novo jogo antes de lançamento público.

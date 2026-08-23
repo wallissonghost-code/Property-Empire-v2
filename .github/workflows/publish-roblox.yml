@@ -1,4 +1,4 @@
-name: Publish Museum Game to Roblox
+name: Publish Mining Base to Roblox
 
 on:
   push:
@@ -15,44 +15,65 @@ permissions:
 
 jobs:
   publish:
-    name: Publish Museum Game
     if: ${{ (github.event_name == 'workflow_dispatch' && inputs.confirm_place_id == '138523274489009') || (github.event_name == 'push' && contains(github.event.head_commit.message, '[DEPLOY_ROBLOX]')) }}
     runs-on: ubuntu-latest
     env:
       UNIVERSE_ID: "10715548183"
       PLACE_ID: "138523274489009"
       ROBLOX_API_KEY: ${{ secrets.Property_empire }}
+
     steps:
-      - uses: actions/checkout@v4
-      - name: Verify API key
-        shell: bash
-        run: 'test -n "$ROBLOX_API_KEY"'
-      - name: Install Rojo
-        run: cargo install rojo --version 7.6.1 --locked
-      - name: Build place
-        run: rojo build default.project.json --output Museum-Empire.rbxlx
-      - name: Publish through Roblox Open Cloud
+      - name: Checkout with upstream game
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 1
+
+      - name: Verify source and key
         shell: bash
         run: |
-          curl --fail-with-body --silent --show-error --location \
-            --request POST \
-            "https://apis.roblox.com/universes/v1/${UNIVERSE_ID}/places/${PLACE_ID}/versions?versionType=Published" \
-            --header "x-api-key: ${ROBLOX_API_KEY}" \
-            --header "Content-Type: application/xml" \
-            --data-binary @Museum-Empire.rbxlx
-      - name: Record publication
+          set -euo pipefail
+          test -n "$ROBLOX_API_KEY"
+          test -f minershaven/minershaven.rbxl
+          test -f minershaven/LICENSE
+          test -f minershaven/CREDITS
+          ls -lh minershaven/minershaven.rbxl
+
+      - name: Publish upstream place to Roblox
+        shell: bash
+        run: |
+          set -euo pipefail
+          HTTP_CODE=$(curl -sS -o publish-response.txt -w "%{http_code}" \
+            -X POST \
+            -H "x-api-key: $ROBLOX_API_KEY" \
+            -H "Content-Type: application/octet-stream" \
+            --data-binary @minershaven/minershaven.rbxl \
+            "https://apis.roblox.com/universes/v1/${UNIVERSE_ID}/places/${PLACE_ID}/versions?versionType=Published")
+          cat publish-response.txt || true
+          if [ "$HTTP_CODE" -lt 200 ] || [ "$HTTP_CODE" -ge 300 ]; then
+            echo "Roblox publish failed with HTTP $HTTP_CODE"
+            exit 1
+          fi
+
+      - name: Record successful publish
         shell: bash
         run: |
           mkdir -p .deploy
-          {
-            echo "place_id=${PLACE_ID}"
-            echo "universe_id=${UNIVERSE_ID}"
-            echo "source_commit=${GITHUB_SHA}"
-            echo "published_at_utc=$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
-            echo "status=accepted_by_roblox_open_cloud"
-          } > .deploy/last-publish.txt
+          cat > .deploy/last-publish.txt <<EOF
+          place_id=${PLACE_ID}
+          universe_id=${UNIVERSE_ID}
+          source_commit=${GITHUB_SHA}
+          upstream_commit=$(git -C minershaven rev-parse HEAD)
+          published_at_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          status=accepted_by_roblox_open_cloud
+          EOF
+
+      - name: Commit publish record
+        shell: bash
+        run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add .deploy/last-publish.txt
-          git commit -m "chore: record successful museum publish" || exit 0
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "chore: record successful mining-base publish"
           git push

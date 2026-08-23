@@ -1,8 +1,0 @@
-Museum Empire foundation v1
-- Roblox R15 NPC visitors
-- visitor archetypes and revenue multipliers
-- pathfinding visitor movement
-- museum stars, rating and prestige attributes
-- persistent visitor statistics foundation
-- progression HUD
-- existing premium museum/build/mining systems preserved

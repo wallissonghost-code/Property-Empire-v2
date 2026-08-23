@@ -1,0 +1,4 @@
+[submodule "minershaven"]
+	path = minershaven
+	url = https://github.com/berezaa/minershaven.git
+	branch = master
