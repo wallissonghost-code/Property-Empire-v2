@@ -7,6 +7,7 @@ OUTPUT_PLACE="Mining-Empire.rbxl"
 TEMP1="Mining-Empire.stage1.rbxl"
 TEMP2="Mining-Empire.stage2.rbxl"
 TEMP3="Mining-Empire.stage3.rbxl"
+TEMP4="Mining-Empire.stage4.rbxl"
 EXPECTED_UPSTREAM="d5c8b41ca8ed9f1bd91176ec397e8dff9a259130"
 
 if [ ! -f "$SOURCE_PLACE" ]; then
@@ -25,13 +26,14 @@ if ! command -v rbxmk >/dev/null 2>&1; then
   exit 1
 fi
 
-rm -f "$TEMP1" "$TEMP2" "$TEMP3" "$OUTPUT_PLACE"
+rm -f "$TEMP1" "$TEMP2" "$TEMP3" "$TEMP4" "$OUTPUT_PLACE"
 rbxmk run scripts/customize-place.rbxmk.lua "$SOURCE_PLACE" "$TEMP1"
 rbxmk run scripts/add-visitors.rbxmk.lua "$TEMP1" "$TEMP2"
 rbxmk run scripts/fix-entry.rbxmk.lua "$TEMP2" "$TEMP3"
-rbxmk run scripts/fix-safe-hud-v2.rbxmk.lua "$TEMP3" "$OUTPUT_PLACE"
-rm -f "$TEMP1" "$TEMP2" "$TEMP3"
+rbxmk run scripts/fix-safe-hud-v2.rbxmk.lua "$TEMP3" "$TEMP4"
+rbxmk run scripts/empire-core.rbxmk.lua "$TEMP4" "$OUTPUT_PLACE"
+rm -f "$TEMP1" "$TEMP2" "$TEMP3" "$TEMP4"
 
 test -f "$OUTPUT_PLACE"
-echo "Prepared customized $OUTPUT_PLACE from licensed upstream $ACTUAL_UPSTREAM"
+echo "Prepared full Mining Empire $OUTPUT_PLACE from licensed upstream $ACTUAL_UPSTREAM"
 ls -lh "$OUTPUT_PLACE"
