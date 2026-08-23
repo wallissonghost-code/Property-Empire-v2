@@ -1,5 +1,6 @@
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
+local UserInputService = game:GetService("UserInputService")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -9,6 +10,12 @@ local TOOLBAR_BOTTOM = 12
 local TOOLBAR_BUTTON_WIDTH = 82
 local TOOLBAR_BUTTON_HEIGHT = 46
 local TOOLBAR_GAP = 6
+
+local function isMobile()
+	local camera = Workspace.CurrentCamera
+	local width = camera and camera.ViewportSize.X or 9999
+	return UserInputService.TouchEnabled or width <= MOBILE_MAX_WIDTH
+end
 
 local function round(guiObject, radius)
 	local corner = guiObject:FindFirstChildOfClass("UICorner") or Instance.new("UICorner")
@@ -50,12 +57,12 @@ end
 local function stylePanel(panel)
 	if not panel or not panel:IsA("GuiObject") then return end
 	panel.AnchorPoint = Vector2.new(0.5, 0.5)
-	panel.Position = UDim2.fromScale(0.5, 0.52)
-	panel.Size = UDim2.new(0.88, 0, 0.78, 0)
+	panel.Position = UDim2.fromScale(0.5, 0.50)
+	panel.Size = UDim2.new(0.88, 0, 0.76, 0)
 	local limit = panel:FindFirstChildOfClass("UISizeConstraint")
 	if limit then
 		limit.MinSize = Vector2.new(280, 300)
-		limit.MaxSize = Vector2.new(680, 560)
+		limit.MaxSize = Vector2.new(680, 540)
 	end
 end
 
@@ -66,7 +73,7 @@ local function compactFoundationHud()
 	if not bar then return end
 	bar.AnchorPoint = Vector2.new(0.5, 0)
 	bar.Position = UDim2.new(0.5, 0, 0, 8)
-	bar.Size = UDim2.new(0.72, 0, 0, 42)
+	bar.Size = UDim2.new(0.68, 0, 0, 42)
 	bar.ZIndex = 20
 
 	local layout = bar:FindFirstChildOfClass("UIListLayout")
@@ -184,7 +191,7 @@ local function applyMobile()
 	if buildGui then stylePanel(buildGui:FindFirstChild("BuildPanel", true)) end
 	if opsGui then
 		for _, d in ipairs(opsGui:GetChildren()) do
-			if d:IsA("Frame") and d.Visible ~= nil then stylePanel(d) end
+			if d:IsA("Frame") then stylePanel(d) end
 		end
 	end
 	if missionsGui then
@@ -198,18 +205,8 @@ local function applyMobile()
 	setupDailyCard()
 end
 
-local function applyDesktop()
-	-- Existing desktop scripts remain authoritative. This controller only overrides mobile layouts.
-end
-
 local function refreshLayout()
-	local camera = Workspace.CurrentCamera
-	if not camera then return end
-	if camera.ViewportSize.X <= MOBILE_MAX_WIDTH then
-		applyMobile()
-	else
-		applyDesktop()
-	end
+	if isMobile() then applyMobile() end
 end
 
 playerGui.ChildAdded:Connect(function()
@@ -226,4 +223,4 @@ task.spawn(function()
 end)
 
 task.defer(refreshLayout)
-print("[Museum Empire] MobileLayoutController ready")
+print("[Museum Empire] MobileLayoutController ready — touch aware")
