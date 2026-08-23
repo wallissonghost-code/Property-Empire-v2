@@ -1,6 +1,7 @@
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -23,7 +24,10 @@ local levelText
 local prestigeText
 local ratingText
 local starsText
+local topToggle
+local topCollapsed = false
 local dailyCollapsed = true
+local topTween
 
 local function isMobile()
 	local camera = Workspace.CurrentCamera
@@ -68,8 +72,9 @@ local function hideLegacyTopHud()
 	end
 end
 
-local function makeChip(parent, width)
+local function makeChip(parent, width, name)
 	local frame = Instance.new("Frame")
+	frame.Name = name
 	frame.Size = UDim2.new(width, 0, 1, -8)
 	frame.BackgroundColor3 = COLORS.Card
 	frame.BackgroundTransparency = 0.05
@@ -90,6 +95,61 @@ local function makeChipLabel(parent)
 	return label
 end
 
+local function setTopState(animated)
+	if not hud or not topToggle then return end
+
+	local camera = Workspace.CurrentCamera
+	local width = camera and camera.ViewportSize.X or 800
+	local cashChip = hud:FindFirstChild("CashChip")
+	local levelChip = hud:FindFirstChild("LevelChip")
+	local prestigeChip = hud:FindFirstChild("PrestigeChip")
+	local ratingChip = hud:FindFirstChild("RatingChip")
+	local starsChip = hud:FindFirstChild("StarsChip")
+
+	if topCollapsed then
+		if cashChip then cashChip.Visible = true cashChip.Size = UDim2.new(0.66, 0, 1, -8) end
+		if levelChip then levelChip.Visible = false end
+		if prestigeChip then prestigeChip.Visible = false end
+		if ratingChip then ratingChip.Visible = false end
+		if starsChip then starsChip.Visible = true starsChip.Size = UDim2.new(0.28, 0, 1, -8) end
+		topToggle.Text = "‹"
+		topToggle.TextSize = 23
+	else
+		if cashChip then cashChip.Visible = true cashChip.Size = UDim2.new(0.29, 0, 1, -8) end
+		if levelChip then levelChip.Visible = true levelChip.Size = UDim2.new(0.16, 0, 1, -8) end
+		if prestigeChip then prestigeChip.Visible = true prestigeChip.Size = UDim2.new(0.19, 0, 1, -8) end
+		if ratingChip then ratingChip.Visible = true ratingChip.Size = UDim2.new(0.17, 0, 1, -8) end
+		if starsChip then starsChip.Visible = true starsChip.Size = UDim2.new(0.16, 0, 1, -8) end
+		topToggle.Text = "›"
+		topToggle.TextSize = 23
+	end
+
+	local targetSize
+	local targetPosition
+	if topCollapsed then
+		targetSize = UDim2.fromOffset(220, 44)
+		targetPosition = UDim2.new(1, -52, 0, 8)
+	elseif width < 760 then
+		targetSize = UDim2.new(0.70, 0, 0, 44)
+		targetPosition = UDim2.new(1, -48, 0, 6)
+	else
+		targetSize = UDim2.fromOffset(460, 48)
+		targetPosition = UDim2.new(1, -52, 0, 8)
+	end
+
+	if topTween then topTween:Cancel() topTween = nil end
+	if animated then
+		topTween = TweenService:Create(hud, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			Size = targetSize,
+			Position = targetPosition,
+		})
+		topTween:Play()
+	else
+		hud.Size = targetSize
+		hud.Position = targetPosition
+	end
+end
+
 local function ensurePremiumHud()
 	if hudGui and hudGui.Parent then return end
 	local old = playerGui:FindFirstChild("MuseumMobilePremiumHUD")
@@ -105,7 +165,7 @@ local function ensurePremiumHud()
 	hud = Instance.new("Frame")
 	hud.Name = "PremiumTopHud"
 	hud.AnchorPoint = Vector2.new(1, 0)
-	hud.Position = UDim2.new(1, -12, 0, 8)
+	hud.Position = UDim2.new(1, -52, 0, 8)
 	hud.Size = UDim2.fromOffset(460, 48)
 	hud.BackgroundColor3 = COLORS.Panel
 	hud.BackgroundTransparency = 0.05
@@ -125,11 +185,32 @@ local function ensurePremiumHud()
 	pad.PaddingRight = UDim.new(0, 6)
 	pad.Parent = hud
 
-	cashText = makeChipLabel(makeChip(hud, 0.29))
-	levelText = makeChipLabel(makeChip(hud, 0.16))
-	prestigeText = makeChipLabel(makeChip(hud, 0.19))
-	ratingText = makeChipLabel(makeChip(hud, 0.17))
-	starsText = makeChipLabel(makeChip(hud, 0.16))
+	cashText = makeChipLabel(makeChip(hud, 0.29, "CashChip"))
+	levelText = makeChipLabel(makeChip(hud, 0.16, "LevelChip"))
+	prestigeText = makeChipLabel(makeChip(hud, 0.19, "PrestigeChip"))
+	ratingText = makeChipLabel(makeChip(hud, 0.17, "RatingChip"))
+	starsText = makeChipLabel(makeChip(hud, 0.16, "StarsChip"))
+
+	topToggle = Instance.new("TextButton")
+	topToggle.Name = "TopCollapseButton"
+	topToggle.AnchorPoint = Vector2.new(1, 0)
+	topToggle.Position = UDim2.new(1, -10, 0, 14)
+	topToggle.Size = UDim2.fromOffset(34, 34)
+	topToggle.BackgroundColor3 = COLORS.Card
+	topToggle.BackgroundTransparency = 0.03
+	topToggle.TextColor3 = COLORS.Text
+	topToggle.Font = Enum.Font.GothamBold
+	topToggle.Text = "›"
+	topToggle.TextSize = 23
+	topToggle.ZIndex = 35
+	topToggle.Parent = hudGui
+	corner(topToggle, 10)
+	addStroke(topToggle, 0.55)
+
+	topToggle.Activated:Connect(function()
+		topCollapsed = not topCollapsed
+		setTopState(true)
+	end)
 end
 
 local function refreshPremiumHud()
@@ -141,16 +222,7 @@ local function refreshPremiumHud()
 	ratingText.Text = string.format("NOTA\n%.1f", tonumber(player:GetAttribute("MuseumRating")) or 0)
 	local stars = math.clamp(math.floor(tonumber(player:GetAttribute("MuseumStars")) or 1), 1, 5)
 	starsText.Text = string.rep("★", stars) .. string.rep("☆", 5 - stars)
-
-	local camera = Workspace.CurrentCamera
-	local width = camera and camera.ViewportSize.X or 800
-	if width < 760 then
-		hud.Size = UDim2.new(0.70, 0, 0, 44)
-		hud.Position = UDim2.new(1, -8, 0, 6)
-	else
-		hud.Size = UDim2.fromOffset(460, 48)
-		hud.Position = UDim2.new(1, -12, 0, 8)
-	end
+	setTopState(false)
 end
 
 local function findButton(gui, name, needle)
@@ -332,4 +404,4 @@ task.defer(function()
 	if isMobile() then applyMobile() end
 end)
 
-print("[Museum Empire] MobileLayoutController ready — restored four-button toolbar")
+print("[Museum Empire] MobileLayoutController ready — retractable top HUD + four-button toolbar")
