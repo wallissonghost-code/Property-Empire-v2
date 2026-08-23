@@ -1,0 +1,9 @@
+project=Museu Empire
+place_id=115967612388956
+universe_id=10757803326
+source_commit=6ee3c7f11ceaecad0c6bffed12be6f0285205a0d
+build=clean-from-scratch
+artifact=Museu-Empire.rbxl
+transformer=rbxmk-v0.9.1
+published_at_utc=2026-08-23T23:30:05Z
+status=accepted_by_roblox_open_cloud
