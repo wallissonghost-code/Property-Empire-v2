@@ -25,6 +25,12 @@ local function defaultProfile()
 				EventEndsAt = 0,
 			},
 		},
+		Progress = {
+			TutorialStep = 1,
+			TutorialDone = false,
+			DailyKey = "",
+			DailyClaimed = false,
+		},
 		Artifacts = {},
 		Stats = {
 			Mined = 0,
@@ -60,6 +66,12 @@ local function reconcile(p)
 	ops.Rating = math.clamp(math.floor(tonumber(ops.Rating) or 50), 0, 100)
 	if type(ops.ActiveEvent) ~= "string" then ops.ActiveEvent = nil end
 	ops.EventEndsAt = math.max(0, math.floor(tonumber(ops.EventEndsAt) or 0))
+
+	if type(p.Progress) ~= "table" then p.Progress = d.Progress end
+	p.Progress.TutorialStep = math.clamp(math.floor(tonumber(p.Progress.TutorialStep) or 1), 1, 6)
+	p.Progress.TutorialDone = p.Progress.TutorialDone == true
+	p.Progress.DailyKey = type(p.Progress.DailyKey) == "string" and p.Progress.DailyKey or ""
+	p.Progress.DailyClaimed = p.Progress.DailyClaimed == true
 
 	local cleanPieces = {}
 	for _, piece in ipairs(p.Museum.BuildPieces) do
@@ -97,6 +109,9 @@ local function sync(player)
 	player:SetAttribute("MuseumCleanliness", ops.Cleanliness or 100)
 	player:SetAttribute("MuseumSecurity", ops.Security or 50)
 	player:SetAttribute("MuseumEvent", ops.ActiveEvent or "")
+	player:SetAttribute("TutorialStep", p.Progress.TutorialStep or 1)
+	player:SetAttribute("TutorialDone", p.Progress.TutorialDone == true)
+	player:SetAttribute("DailyClaimed", p.Progress.DailyClaimed == true)
 	local leaderstats = player:FindFirstChild("leaderstats")
 	local cashValue = leaderstats and leaderstats:FindFirstChild("Cash")
 	if cashValue then cashValue.Value = math.min(cash, 2147483647) end
