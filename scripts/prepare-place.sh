@@ -23,8 +23,8 @@ if ! command -v rbxmk >/dev/null 2>&1; then
 fi
 
 rm -f "$OUTPUT_PLACE"
-rbxmk run scripts/emergency-safe-mode.rbxmk.lua "$SOURCE_PLACE" "$OUTPUT_PLACE"
+rbxmk run scripts/sterile-place.rbxmk.lua "$SOURCE_PLACE" "$OUTPUT_PLACE"
 
 test -f "$OUTPUT_PLACE"
-echo "Prepared Mining Empire emergency SAFE MODE from licensed upstream $ACTUAL_UPSTREAM"
+echo "Prepared Mining Empire sterile diagnostic place from licensed upstream $ACTUAL_UPSTREAM"
 ls -lh "$OUTPUT_PLACE"
