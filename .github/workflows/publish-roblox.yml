@@ -36,18 +36,20 @@ jobs:
           test -f scripts/current-place.rbxmk.lua
           test -f scripts/prepare-place.sh
 
-      - name: Activate universe and capture Roblox configuration
+      - name: Make universe public and capture Roblox configuration
         shell: bash
         run: |
           set -u
           mkdir -p .deploy
 
-          ACTIVATE_HTTP=$(curl -sS -o /tmp/activate.json -w "%{http_code}" \
-            -X POST \
+          PATCH_HTTP=$(curl -sS -o /tmp/patch-universe.json -w "%{http_code}" \
+            -X PATCH \
             -H "x-api-key: $ROBLOX_API_KEY" \
             -H "Content-Type: application/json" \
-            -d '{}' \
-            "https://apis.roblox.com/legacy-develop/v1/universes/${UNIVERSE_ID}/activate" || true)
+            -d '{"visibility":"PUBLIC"}' \
+            "https://apis.roblox.com/cloud/v2/universes/${UNIVERSE_ID}?updateMask=visibility" || true)
+
+          sleep 2
 
           GAME_HTTP=$(curl -sS -o /tmp/game.json -w "%{http_code}" \
             "https://games.roblox.com/v1/games?universeIds=${UNIVERSE_ID}" || true)
@@ -67,13 +69,15 @@ jobs:
           MAX_PLAYERS=$(jq -r '.data[0].maxPlayers // "unknown"' /tmp/game.json 2>/dev/null || echo unknown)
           GAME_NAME=$(jq -r '.data[0].name // "unknown"' /tmp/game.json 2>/dev/null || echo unknown)
           PLAYING=$(jq -r '.data[0].playing // "unknown"' /tmp/game.json 2>/dev/null || echo unknown)
+          VISIBILITY=$(jq -r '.visibility // "unknown"' /tmp/cloud-universe.json 2>/dev/null || echo unknown)
           PLACE_LIST=$(jq -c '[.data[]? | {id,name}]' /tmp/places.json 2>/dev/null || echo '[]')
 
           cat > .deploy/roblox-diagnostics.txt <<EOF
           checked_at_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)
           universe_id=${UNIVERSE_ID}
           configured_place_id=${PLACE_ID}
-          activate_http=${ACTIVATE_HTTP}
+          patch_visibility_http=${PATCH_HTTP}
+          visibility=${VISIBILITY}
           public_game_http=${GAME_HTTP}
           public_places_http=${PLACES_HTTP}
           cloud_universe_http=${CLOUD_UNIVERSE_HTTP}
@@ -83,12 +87,15 @@ jobs:
           game_name=${GAME_NAME}
           playing=${PLAYING}
           places=${PLACE_LIST}
-          activate_response=$(tr '\n' ' ' < /tmp/activate.json 2>/dev/null | head -c 500)
-          cloud_universe_response=$(tr '\n' ' ' < /tmp/cloud-universe.json 2>/dev/null | head -c 1000)
+          patch_visibility_response=$(tr '\n' ' ' < /tmp/patch-universe.json 2>/dev/null | head -c 1000)
+          cloud_universe_response=$(tr '\n' ' ' < /tmp/cloud-universe.json 2>/dev/null | head -c 1200)
           cloud_place_response=$(tr '\n' ' ' < /tmp/cloud-place.json 2>/dev/null | head -c 1000)
           EOF
 
           cat .deploy/roblox-diagnostics.txt
+          if [ "$VISIBILITY" != "PUBLIC" ]; then
+            echo "Universe visibility is still $VISIBILITY; publication will continue, but the experience may remain inaccessible."
+          fi
 
       - name: Set up Go
         uses: actions/setup-go@v5
