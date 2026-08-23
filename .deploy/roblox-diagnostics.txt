@@ -1,7 +1,7 @@
-checked_at_utc=2026-08-23T23:49:35Z
+checked_at_utc=2026-08-23T23:58:06Z
 universe_id=10757803326
 place_id=115967612388956
 universe_http=200
 place_http=200
 universe_response={"path":"universes/10757803326","createTime":"2026-08-23T23:24:55.180Z","updateTime":"2026-08-23T23:24:59.169Z","displayName":"museu empire ","description":"","user":"users/9538436641","visibility":"PRIVATE","voiceChatEnabled":true,"ageRating":"AGE_RATING_13_PLUS","desktopEnabled":true,"mobileEnabled":true,"tabletEnabled":true,"consoleEnabled":false,"vrEnabled":true,"rootPlace":"universes/10757803326/places/115967612388956","templateRootPlace":""}
-place_response={"path":"universes/10757803326/places/115967612388956","createTime":"2026-08-23T23:24:54.995Z","updateTime":"2026-08-23T23:47:00.663248Z","displayName":"museu empire ","description":"","serverSize":50,"root":true,"universeRuntimeCreation":false,"templatePlace":""}
+place_response={"path":"universes/10757803326/places/115967612388956","createTime":"2026-08-23T23:24:54.995Z","updateTime":"2026-08-23T23:49:57.874058800Z","displayName":"museu empire ","description":"","serverSize":50,"root":true,"universeRuntimeCreation":false,"templatePlace":""}
