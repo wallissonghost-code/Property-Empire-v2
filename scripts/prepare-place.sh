@@ -29,7 +29,7 @@ rm -f "$TEMP1" "$TEMP2" "$TEMP3" "$OUTPUT_PLACE"
 rbxmk run scripts/customize-place.rbxmk.lua "$SOURCE_PLACE" "$TEMP1"
 rbxmk run scripts/add-visitors.rbxmk.lua "$TEMP1" "$TEMP2"
 rbxmk run scripts/fix-entry.rbxmk.lua "$TEMP2" "$TEMP3"
-rbxmk run scripts/fix-safe-hud.rbxmk.lua "$TEMP3" "$OUTPUT_PLACE"
+rbxmk run scripts/fix-safe-hud-v2.rbxmk.lua "$TEMP3" "$OUTPUT_PLACE"
 rm -f "$TEMP1" "$TEMP2" "$TEMP3"
 
 test -f "$OUTPUT_PLACE"
