@@ -16,6 +16,14 @@ local function defaultProfile()
 			Level = 1,
 			BuildPieces = {},
 			RatingXP = 0,
+			Operations = {
+				Staff = { Reception = 0, Security = 0, Cleaning = 0, Shop = 0, Guide = 0 },
+				Cleanliness = 100,
+				Security = 50,
+				Rating = 50,
+				ActiveEvent = nil,
+				EventEndsAt = 0,
+			},
 		},
 		Artifacts = {},
 		Stats = {
@@ -27,6 +35,10 @@ local function defaultProfile()
 			BestVisitRevenue = 0,
 			Sales = 0,
 			Purchases = 0,
+			ShopRevenue = 0,
+			EventRevenue = 0,
+			EventsHosted = 0,
+			MaintenancePaid = 0,
 		},
 	}
 end
@@ -39,22 +51,23 @@ local function reconcile(p)
 	p.Museum.Level = math.clamp(math.floor(tonumber(p.Museum.Level) or 1), 1, 5)
 	p.Museum.RatingXP = math.max(0, math.floor(tonumber(p.Museum.RatingXP) or 0))
 	if type(p.Museum.BuildPieces) ~= "table" then p.Museum.BuildPieces = {} end
+	if type(p.Museum.Operations) ~= "table" then p.Museum.Operations = d.Museum.Operations end
+	local ops = p.Museum.Operations
+	if type(ops.Staff) ~= "table" then ops.Staff = d.Museum.Operations.Staff end
+	for role, value in pairs(d.Museum.Operations.Staff) do ops.Staff[role] = math.clamp(math.floor(tonumber(ops.Staff[role]) or value), 0, 5) end
+	ops.Cleanliness = math.clamp(math.floor(tonumber(ops.Cleanliness) or 100), 0, 100)
+	ops.Security = math.clamp(math.floor(tonumber(ops.Security) or 50), 0, 100)
+	ops.Rating = math.clamp(math.floor(tonumber(ops.Rating) or 50), 0, 100)
+	if type(ops.ActiveEvent) ~= "string" then ops.ActiveEvent = nil end
+	ops.EventEndsAt = math.max(0, math.floor(tonumber(ops.EventEndsAt) or 0))
+
 	local cleanPieces = {}
 	for _, piece in ipairs(p.Museum.BuildPieces) do
-		if type(piece) == "table"
-			and type(piece.Id) == "string"
-			and type(piece.ItemId) == "string"
-			and tonumber(piece.X)
-			and tonumber(piece.Z)
-		then
+		if type(piece) == "table" and type(piece.Id) == "string" and type(piece.ItemId) == "string" and tonumber(piece.X) and tonumber(piece.Z) then
 			table.insert(cleanPieces, {
-				Id = piece.Id,
-				ItemId = piece.ItemId,
-				X = tonumber(piece.X),
-				Z = tonumber(piece.Z),
+				Id = piece.Id, ItemId = piece.ItemId, X = tonumber(piece.X), Z = tonumber(piece.Z),
 				Floor = math.clamp(math.floor(tonumber(piece.Floor) or 1), 1, 5),
-				Rotation = math.floor(tonumber(piece.Rotation) or 0),
-				CreatedAt = math.max(0, math.floor(tonumber(piece.CreatedAt) or 0)),
+				Rotation = math.floor(tonumber(piece.Rotation) or 0), CreatedAt = math.max(0, math.floor(tonumber(piece.CreatedAt) or 0)),
 			})
 		end
 		if #cleanPieces >= 500 then break end
@@ -79,6 +92,11 @@ local function sync(player)
 	player:SetAttribute("MuseumLevel", p.Museum.Level)
 	player:SetAttribute("MuseumVisits", p.Stats.Visits or 0)
 	player:SetAttribute("MuseumRevenue", p.Stats.VisitorRevenue or 0)
+	local ops = p.Museum.Operations
+	player:SetAttribute("MuseumRating", ops.Rating or 50)
+	player:SetAttribute("MuseumCleanliness", ops.Cleanliness or 100)
+	player:SetAttribute("MuseumSecurity", ops.Security or 50)
+	player:SetAttribute("MuseumEvent", ops.ActiveEvent or "")
 	local leaderstats = player:FindFirstChild("leaderstats")
 	local cashValue = leaderstats and leaderstats:FindFirstChild("Cash")
 	if cashValue then cashValue.Value = math.min(cash, 2147483647) end
@@ -87,12 +105,8 @@ end
 function DataService:Load(player)
 	local ok, raw = pcall(function() return store:GetAsync("player_" .. player.UserId) end)
 	profiles[player] = reconcile(ok and raw or nil)
-	local leaderstats = Instance.new("Folder")
-	leaderstats.Name = "leaderstats"
-	leaderstats.Parent = player
-	local cash = Instance.new("IntValue")
-	cash.Name = "Cash"
-	cash.Parent = leaderstats
+	local leaderstats = Instance.new("Folder") leaderstats.Name = "leaderstats" leaderstats.Parent = player
+	local cash = Instance.new("IntValue") cash.Name = "Cash" cash.Parent = leaderstats
 	sync(player)
 end
 
@@ -111,29 +125,21 @@ function DataService:AdjustCash(player, delta)
 	delta = math.floor(tonumber(delta) or 0)
 	if delta < 0 and tester(player) then sync(player) return true end
 	if p.Cash + delta < 0 then return false end
-	p.Cash += delta
-	sync(player)
-	return true
+	p.Cash += delta sync(player) return true
 end
 
 function DataService:Save(player)
 	local p = profiles[player]
 	if not p then return false end
-	local ok = pcall(function() store:SetAsync("player_" .. player.UserId, p) end)
-	return ok
+	return pcall(function() store:SetAsync("player_" .. player.UserId, p) end)
 end
 
 function DataService:Start()
-	if started then return end
-	started = true
+	if started then return end started = true
 	Players.PlayerAdded:Connect(function(p) self:Load(p) end)
 	Players.PlayerRemoving:Connect(function(p) self:Save(p) profiles[p] = nil end)
 	for _, p in ipairs(Players:GetPlayers()) do task.spawn(function() self:Load(p) end) end
-	task.spawn(function()
-		while task.wait(Config.AutosaveSeconds) do
-			for p in pairs(profiles) do task.spawn(function() self:Save(p) end) end
-		end
-	end)
+	task.spawn(function() while task.wait(Config.AutosaveSeconds) do for p in pairs(profiles) do task.spawn(function() self:Save(p) end) end end end)
 	game:BindToClose(function() for p in pairs(profiles) do self:Save(p) end end)
 	print("[Museum Empire] DataService started")
 end
