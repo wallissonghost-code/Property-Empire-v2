@@ -69,21 +69,110 @@ local function updateRanking(world,museumService)
 	label.Text=table.concat(lines,"\n")
 end
 
+local function displayedArtifacts(profile)
+	local result={}
+	for _,artifact in ipairs(profile.Artifacts or {}) do
+		if artifact.Location=="Display" and type(artifact.Uid)=="string" then
+			table.insert(result,artifact)
+		end
+	end
+	return result
+end
+
+local function artifactPart(info,artifact)
+	if not info or not info.Model or not artifact then return nil end
+	return info.Model:FindFirstChild("Artifact_"..artifact.Uid,true)
+end
+
+local function applyDamageVisual(info,artifact)
+	local part=artifactPart(info,artifact)
+	if not part or not part:IsA("BasePart") then return end
+	local damage=math.clamp(math.floor(tonumber(artifact.Damage) or 0),0,100)
+	part:SetAttribute("Damage",damage)
+	part:SetAttribute("Condition",100-damage)
+	if part:GetAttribute("OriginalColorR")==nil then
+		part:SetAttribute("OriginalColorR",part.Color.R)
+		part:SetAttribute("OriginalColorG",part.Color.G)
+		part:SetAttribute("OriginalColorB",part.Color.B)
+	end
+	local r=tonumber(part:GetAttribute("OriginalColorR")) or part.Color.R
+	local g=tonumber(part:GetAttribute("OriginalColorG")) or part.Color.G
+	local b=tonumber(part:GetAttribute("OriginalColorB")) or part.Color.B
+	local factor=1-(damage/100)*.45
+	part.Color=Color3.new(math.clamp(r*factor,0,1),math.clamp(g*factor,0,1),math.clamp(b*factor,0,1))
+	local old=part:FindFirstChild("DamageHighlight")
+	local tag=part:FindFirstChild("DamageTag")
+	if damage<=0 then
+		if old then old:Destroy() end
+		if tag then tag:Destroy() end
+		return
+	end
+	local h=old or Instance.new("Highlight")
+	h.Name="DamageHighlight" h.Adornee=part h.DepthMode=Enum.HighlightDepthMode.AlwaysOnTop
+	h.FillTransparency=.9 h.OutlineTransparency=.22 h.OutlineColor=Color3.fromRGB(188,69,69) h.Parent=part
+	if not tag then
+		tag=Instance.new("BillboardGui") tag.Name="DamageTag" tag.Size=UDim2.fromOffset(150,36) tag.StudsOffset=Vector3.new(0,2.6,0) tag.AlwaysOnTop=true tag.MaxDistance=45 tag.Parent=part
+		local label=Instance.new("TextLabel") label.Name="Text" label.Size=UDim2.fromScale(1,1) label.BackgroundColor3=Color3.fromRGB(55,20,23) label.BackgroundTransparency=.12
+		label.TextColor3=Color3.fromRGB(255,225,225) label.Font=Enum.Font.GothamBold label.TextSize=12 label.Parent=tag
+		Instance.new("UICorner",label).CornerRadius=UDim.new(0,8)
+	end
+	local label=tag:FindFirstChild("Text")
+	if label then label.Text="⚠ DANIFICADO · "..damage.."%" end
+end
+
+local function applyAllDamageVisuals(info,profile)
+	for _,artifact in ipairs(profile.Artifacts or {}) do
+		if artifact.Location=="Display" and (tonumber(artifact.Damage) or 0)>0 then
+			applyDamageVisual(info,artifact)
+		end
+	end
+end
+
 local function spawnThief(info, owner, dataService)
+	local profile=dataService:Get(owner)
+	if not profile then return end
+	local targets=displayedArtifacts(profile)
+	if #targets==0 then return end
+	local target=targets[math.random(1,#targets)]
+	local targetPart=artifactPart(info,target)
+	if not targetPart then return end
+
 	local desc=Instance.new("HumanoidDescription")
 	local ok,model=pcall(function() return Players:CreateHumanoidModelFromDescription(desc,Enum.HumanoidRigType.R15) end)
 	if not ok or not model then return end
-	model.Name="MuseumThief" model:SetAttribute("ThiefNPC",true) model.Parent=info.Model.Parent model:PivotTo(info.Entrance*CFrame.new(5,0,0))
-	for _,p in ipairs(model:GetDescendants()) do if p:IsA("BasePart") then p.Color=Color3.fromRGB(35,35,40) end end
+	model.Name="MuseumThief" model:SetAttribute("ThiefNPC",true) model:SetAttribute("TargetArtifactUid",target.Uid)
+	model.Parent=info.Model.Parent model:PivotTo(info.Entrance*CFrame.new(5,0,0))
+	for _,p in ipairs(model:GetDescendants()) do if p:IsA("BasePart") then p.Color=Color3.fromRGB(35,35,40) p.CanCollide=false end end
 	local h=model:FindFirstChildOfClass("Humanoid")
 	if h then
-		h.WalkSpeed=18 h:MoveTo(info.Inside.Position) task.wait(3)
-		local profile=dataService:Get(owner)
-		local security=profile and profile.Museum.Operations.Security or 50
-		if math.random(1,100)>security then dataService:AdjustCash(owner,-math.min(1500,math.floor((owner:GetAttribute("Cash") or 0)*.03))) end
+		h.WalkSpeed=18
+		h:MoveTo(targetPart.Position)
+		task.wait(3)
+		profile=dataService:Get(owner)
+		if profile then
+			local ops=profile.Museum and profile.Museum.Operations or {}
+			local securityStaff=ops.Staff and (ops.Staff.Security or 0) or 0
+			local security=math.clamp((ops.Security or 50)+securityStaff*8,0,100)
+			profile.Stats.RobberyAttempts=(profile.Stats.RobberyAttempts or 0)+1
+			local toast=ReplicatedStorage:FindFirstChild("MuseumRemotes") and ReplicatedStorage.MuseumRemotes:FindFirstChild("MuseumToast")
+			local blockedChance=math.clamp(.18+security/115,.18,.96)
+			if math.random()<blockedChance then
+				profile.Stats.RobberiesStopped=(profile.Stats.RobberiesStopped or 0)+1
+				if toast then toast:FireClient(owner,"🛡️ Segurança protegeu uma peça da exposição") end
+			else
+				local damage=math.random(20,40)
+				target.Damage=math.clamp(math.floor(tonumber(target.Damage) or 0)+damage,0,100)
+				target.LastDamagedAt=os.time()
+				profile.Stats.ArtifactDamageIncidents=(profile.Stats.ArtifactDamageIncidents or 0)+1
+				profile.Stats.ArtifactDamagePoints=(profile.Stats.ArtifactDamagePoints or 0)+damage
+				applyDamageVisual(info,target)
+				if toast then toast:FireClient(owner,"🚨 Ladrão danificou uma peça da exposição · "..target.Damage.."% de dano") end
+			end
+			dataService:Sync(owner)
+		end
 		h:MoveTo(info.Exit.Position)
 	end
-	task.delay(5,function() if model then model:Destroy() end end)
+	task.delay(5,function() if model and model.Parent then model:Destroy() end end)
 end
 
 local function dailyKey() return os.date("!%Y-%j") end
@@ -104,7 +193,8 @@ function WorldGameplayService:Start(dataService,museumService,worldService)
 			local profile=dataService:Wait(player,15) if not profile then return end
 			if profile.Progress.DailyKey~=dailyKey() then profile.Progress.DailyKey=dailyKey() profile.Progress.DailyClaimed=false dataService:Sync(player) end
 			task.wait(2)
-			local info=museumService:GetMuseumInfo(player) if info and info.Model then physicalZones(info.Model) end
+			local info=museumService:GetMuseumInfo(player)
+			if info and info.Model then physicalZones(info.Model) applyAllDamageVisuals(info,profile) end
 		end)
 	end
 	Players.PlayerAdded:Connect(setup) for _,p in ipairs(Players:GetPlayers()) do setup(p) end
@@ -133,7 +223,11 @@ function WorldGameplayService:Start(dataService,museumService,worldService)
 
 	task.spawn(function()
 		while task.wait(20) do
-			for _,owner in ipairs(museumService:GetOwners()) do local info=museumService:GetMuseumInfo(owner) if info and info.Model then physicalZones(info.Model) end end
+			for _,owner in ipairs(museumService:GetOwners()) do
+				local info=museumService:GetMuseumInfo(owner)
+				local profile=dataService:Get(owner)
+				if info and info.Model then physicalZones(info.Model) if profile then applyAllDamageVisuals(info,profile) end end
+			end
 		end
 	end)
 	task.spawn(function() while task.wait(75) do updateRanking(world,museumService) end end)
@@ -145,7 +239,7 @@ function WorldGameplayService:Start(dataService,museumService,worldService)
 			end
 		end
 	end)
-	print("[Museum Empire] WorldGameplayService started — shop, queue, ranking, thieves, tutorial and daily objectives")
+	print("[Museum Empire] WorldGameplayService started — thieves now target and damage displayed artifacts")
 end
 
 return WorldGameplayService
