@@ -1,9 +1,9 @@
-project=Museu Empire
+project=Cidade de Investidores
 place_id=115967612388956
 universe_id=10757803326
-source_commit=08e0b3a9ce438ba28806af9d08b8c458c17531d7
+source_commit=d778fbf1cec57e1ddca3a436fdd1034690072cc1
 build=clean-from-scratch
-artifact=Museu-Empire.rbxl
+artifact=Cidade-de-Investidores.rbxl
 transformer=rbxmk-v0.9.1
-published_at_utc=2026-08-23T23:58:30Z
+published_at_utc=2026-09-07T21:18:19Z
 status=accepted_by_roblox_open_cloud
