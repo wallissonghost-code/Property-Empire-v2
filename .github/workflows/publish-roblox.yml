@@ -43,14 +43,18 @@ jobs:
           PLACE_HTTP=$(curl -sS -o /tmp/place.json -w "%{http_code}" \
             -H "x-api-key: $ROBLOX_API_KEY" \
             "https://apis.roblox.com/cloud/v2/universes/${UNIVERSE_ID}/places/${PLACE_ID}" || true)
+          PUBLIC_HTTP=$(curl -sS -o /tmp/public-game.json -w "%{http_code}" \
+            "https://games.roblox.com/v1/games?universeIds=${UNIVERSE_ID}" || true)
           cat > .deploy/roblox-diagnostics.txt <<EOF
           checked_at_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)
           universe_id=${UNIVERSE_ID}
           place_id=${PLACE_ID}
           universe_http=${UNIVERSE_HTTP}
           place_http=${PLACE_HTTP}
+          public_game_http=${PUBLIC_HTTP}
           universe_response=$(tr '\n' ' ' < /tmp/universe.json 2>/dev/null | head -c 1200)
           place_response=$(tr '\n' ' ' < /tmp/place.json 2>/dev/null | head -c 1200)
+          public_game_response=$(tr '\n' ' ' < /tmp/public-game.json 2>/dev/null | head -c 2000)
           EOF
           cat .deploy/roblox-diagnostics.txt
 
