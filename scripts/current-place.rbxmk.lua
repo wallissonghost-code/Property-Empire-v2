@@ -1,343 +1,156 @@
 local outputPath = ...
-assert(type(outputPath) == "string" and outputPath ~= "", "missing output place path")
+assert(type(outputPath) == "string" and outputPath ~= "", "missing output path")
 
 local place = Instance.new("DataModel")
-place.Name = "Museu Empire"
-
-local players = place:GetService("Players")
+place.Name = "Cidade de Investidores"
 local workspace = place:GetService("Workspace")
 local lighting = place:GetService("Lighting")
+local players = place:GetService("Players")
+local serverScripts = place:GetService("ServerScriptService")
 local starterPlayer = place:GetService("StarterPlayer")
-local serverScriptService = place:GetService("ServerScriptService")
-
 players.CharacterAutoLoads = true
-lighting.Brightness = 2.2
-lighting.ClockTime = 14
-lighting.Ambient = Color3.fromRGB(130, 130, 140)
-lighting.OutdoorAmbient = Color3.fromRGB(150, 150, 160)
+lighting.Brightness, lighting.ClockTime = 2.5, 13.5
+lighting.Ambient = Color3.fromRGB(145, 160, 185)
+lighting.OutdoorAmbient = Color3.fromRGB(165, 175, 195)
 
 local function part(name, size, position, color, material, parent)
     local p = Instance.new("Part")
-    p.Name = name
-    p.Anchored = true
-    p.Size = size
-    p.Position = position
-    p.Color = color
-    p.Material = material or "SmoothPlastic"
+    p.Name, p.Anchored, p.Size, p.Position, p.Color = name, true, size, position, color
+    p.Material, p.TopSurface, p.BottomSurface = material or "SmoothPlastic", "Smooth", "Smooth"
     p.Parent = parent or workspace
     return p
 end
 
-local world = Instance.new("Folder")
-world.Name = "MuseuEmpireWorld"
-world.Parent = workspace
-
-part("Ground", Vector3.new(320, 2, 320), Vector3.new(0, 0, 0), Color3.fromRGB(74, 88, 74), "Grass", world)
-
-local museum = Instance.new("Model")
-museum.Name = "StarterMuseum"
-museum.Parent = world
-
-part("MuseumFloor", Vector3.new(110, 2, 90), Vector3.new(0, 1, -20), Color3.fromRGB(225, 222, 215), "Marble", museum)
-part("BackWall", Vector3.new(110, 24, 2), Vector3.new(0, 13, -64), Color3.fromRGB(238, 236, 230), "Concrete", museum)
-part("LeftWall", Vector3.new(2, 24, 90), Vector3.new(-54, 13, -20), Color3.fromRGB(238, 236, 230), "Concrete", museum)
-part("RightWall", Vector3.new(2, 24, 90), Vector3.new(54, 13, -20), Color3.fromRGB(238, 236, 230), "Concrete", museum)
-part("FrontLeft", Vector3.new(42, 24, 2), Vector3.new(-34, 13, 24), Color3.fromRGB(238, 236, 230), "Concrete", museum)
-part("FrontRight", Vector3.new(42, 24, 2), Vector3.new(34, 13, 24), Color3.fromRGB(238, 236, 230), "Concrete", museum)
-local header = part("FrontHeader", Vector3.new(26, 7, 2), Vector3.new(0, 21.5, 24), Color3.fromRGB(30, 33, 42), "SmoothPlastic", museum)
-
-local signGui = Instance.new("SurfaceGui")
-signGui.Face = "Front"
-signGui.CanvasSize = Vector2.new(900, 240)
-signGui.Parent = header
-local signText = Instance.new("TextLabel")
-signText.Size = UDim2.new(1, 0, 1, 0)
-signText.BackgroundTransparency = 1
-signText.Text = "MUSEU EMPIRE"
-signText.TextColor3 = Color3.fromRGB(245, 208, 108)
-signText.Font = "GothamBlack"
-signText.TextScaled = true
-signText.Parent = signGui
-
-part("EntranceCarpet", Vector3.new(18, 0.4, 40), Vector3.new(0, 2.2, 16), Color3.fromRGB(110, 24, 32), "Fabric", museum)
-part("Reception", Vector3.new(24, 5, 6), Vector3.new(0, 4.5, -2), Color3.fromRGB(83, 60, 44), "Wood", museum)
-
-local exhibitions = Instance.new("Folder")
-exhibitions.Name = "Exhibitions"
-exhibitions.Parent = museum
-
-local function createExhibition(index, name, x, z, price, income, prestigeReward, artifactColor, artifactShape)
-    local model = Instance.new("Model")
-    model.Name = "Exhibition" .. tostring(index)
-    model:SetAttribute("Index", index)
-    model:SetAttribute("Price", price)
-    model:SetAttribute("Income", income)
-    model:SetAttribute("PrestigeReward", prestigeReward)
-    model:SetAttribute("Purchased", false)
-    model.Parent = exhibitions
-
-    part("DisplayBase", Vector3.new(12, 2, 12), Vector3.new(x, 3, z), Color3.fromRGB(44, 46, 52), "Marble", model)
-    part("Pedestal", Vector3.new(5, 7, 5), Vector3.new(x, 7.5, z), Color3.fromRGB(230, 230, 228), "Marble", model)
-
-    local artifact = part("Artifact", Vector3.new(3.2, 5, 3.2), Vector3.new(x, 13.5, z), artifactColor, "Metal", model)
-    artifact.Shape = artifactShape or "Ball"
-    artifact.Transparency = 1
-    artifact.CanCollide = false
-
-    local pad = part("PurchasePad", Vector3.new(10, 1, 10), Vector3.new(x + 14, 2.5, z), Color3.fromRGB(50, 180, 95), "Neon", model)
-    local prompt = Instance.new("ProximityPrompt")
-    prompt.Name = "BuyPrompt"
-    prompt.ActionText = "Comprar exposição"
-    prompt.ObjectText = name .. " · $" .. tostring(price)
-    prompt.HoldDuration = 0.2
-    prompt.MaxActivationDistance = 12
-    prompt.RequiresLineOfSight = false
-    prompt.Enabled = index == 1
-    prompt.Parent = pad
-
-    local gui = Instance.new("BillboardGui")
-    gui.Name = "PriceBillboard"
-    gui.Size = UDim2.fromOffset(210, 66)
-    gui.StudsOffset = Vector3.new(0, 3.8, 0)
-    gui.AlwaysOnTop = true
-    gui.Parent = pad
-    local label = Instance.new("TextLabel")
-    label.Name = "Label"
-    label.Size = UDim2.new(1, 0, 1, 0)
-    label.BackgroundColor3 = Color3.fromRGB(20, 24, 30)
-    label.BackgroundTransparency = 0.1
-    label.TextColor3 = Color3.fromRGB(255, 255, 255)
-    label.Text = name .. "\n$" .. tostring(price) .. " · +$" .. tostring(income) .. "/5s"
-    label.Font = "GothamBold"
-    label.TextScaled = true
-    label.Parent = gui
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 10)
-    corner.Parent = label
+local world = Instance.new("Folder") world.Name = "InvestorCity" world.Parent = workspace
+part("Ground", Vector3.new(520,2,520), Vector3.new(0,-1,0), Color3.fromRGB(82,151,77), "Grass", world)
+part("MainRoad", Vector3.new(64,.6,500), Vector3.new(0,.2,0), Color3.fromRGB(48,51,57), "Asphalt", world)
+part("CrossRoad", Vector3.new(500,.6,64), Vector3.new(0,.22,0), Color3.fromRGB(48,51,57), "Asphalt", world)
+for _, x in ipairs({-38,38}) do part("Sidewalk",Vector3.new(11,1,500),Vector3.new(x,.5,0),Color3.fromRGB(188,191,195),"Concrete",world) end
+for _, z in ipairs({-38,38}) do part("Sidewalk",Vector3.new(500,1,11),Vector3.new(0,.52,z),Color3.fromRGB(188,191,195),"Concrete",world) end
+for n=-210,210,30 do
+    part("LaneMark",Vector3.new(1.2,.08,13),Vector3.new(0,.55,n),Color3.fromRGB(245,205,65),"Neon",world)
+    part("LaneMark",Vector3.new(13,.08,1.2),Vector3.new(n,.57,0),Color3.fromRGB(245,205,65),"Neon",world)
 end
-
-createExhibition(1, "Relíquia Antiga", -30, -30, 100, 5, 1, Color3.fromRGB(214, 168, 70), "Ball")
-createExhibition(2, "Cristal Imperial", 0, -30, 350, 15, 2, Color3.fromRGB(104, 174, 255), "Block")
-createExhibition(3, "Coroa Dourada", 30, -30, 900, 40, 4, Color3.fromRGB(246, 205, 65), "Ball")
-
-local progressSign = part("ProgressBoard", Vector3.new(26, 10, 1), Vector3.new(0, 10, -62.7), Color3.fromRGB(28, 31, 39), "SmoothPlastic", museum)
-local progressGui = Instance.new("SurfaceGui")
-progressGui.Face = "Front"
-progressGui.CanvasSize = Vector2.new(700, 260)
-progressGui.Parent = progressSign
-local progressText = Instance.new("TextLabel")
-progressText.Size = UDim2.new(1, -30, 1, -30)
-progressText.Position = UDim2.fromOffset(15, 15)
-progressText.BackgroundTransparency = 1
-progressText.TextColor3 = Color3.fromRGB(255, 255, 255)
-progressText.Text = "EXPANDA SEU MUSEU\n1★ Relíquia  •  3★ Cristal  •  7★ Coroa"
-progressText.Font = "GothamBold"
-progressText.TextScaled = true
-progressText.TextWrapped = true
-progressText.Parent = progressGui
 
 local spawn = Instance.new("SpawnLocation")
-spawn.Name = "MuseumSpawn"
-spawn.Anchored = true
-spawn.Neutral = true
-spawn.Size = Vector3.new(12, 1, 12)
-spawn.Position = Vector3.new(0, 3, 48)
-spawn.Material = "Neon"
-spawn.Color = Color3.fromRGB(70, 200, 120)
+spawn.Name, spawn.Anchored, spawn.Neutral = "CitySpawn", true, true
+spawn.Size, spawn.Position, spawn.Material, spawn.Color = Vector3.new(14,1,14), Vector3.new(0,1.2,55), "Neon", Color3.fromRGB(63,205,125)
 spawn.Parent = world
 
-local server = Instance.new("Script")
-server.Name = "MuseumGameServer"
-server.Source = [=[
-local Players = game:GetService("Players")
-local workspace = game:GetService("Workspace")
+local board = part("CityBoard",Vector3.new(46,13,2),Vector3.new(0,12,78),Color3.fromRGB(20,31,48),"SmoothPlastic",world)
+local sg=Instance.new("SurfaceGui") sg.Face="Front" sg.CanvasSize=Vector2.new(1000,300) sg.Parent=board
+local st=Instance.new("TextLabel") st.Size=UDim2.fromScale(1,1) st.BackgroundTransparency=1 st.Text="CIDADE DE INVESTIDORES\nCOMPRE • MELHORE • LUCRE" st.TextColor3=Color3.new(1,1,1) st.Font="GothamBlack" st.TextScaled=true st.Parent=sg
 
-local museum = workspace:WaitForChild("MuseuEmpireWorld"):WaitForChild("StarterMuseum")
-local exhibitions = museum:WaitForChild("Exhibitions")
-
-local ownerUserId = 0
-local totalIncome = 0
-local purchasedCount = 0
-
-local ordered = {}
-for _, model in ipairs(exhibitions:GetChildren()) do
-    table.insert(ordered, model)
-end
-table.sort(ordered, function(a, b)
-    return (a:GetAttribute("Index") or 0) < (b:GetAttribute("Index") or 0)
-end)
-
-local function setupPlayer(player)
-    if player:FindFirstChild("leaderstats") then return end
-    local leaderstats = Instance.new("Folder")
-    leaderstats.Name = "leaderstats"
-    leaderstats.Parent = player
-
-    local cash = Instance.new("IntValue")
-    cash.Name = "Cash"
-    cash.Value = 250
-    cash.Parent = leaderstats
-
-    local prestige = Instance.new("IntValue")
-    prestige.Name = "Prestige"
-    prestige.Value = 0
-    prestige.Parent = leaderstats
-
-    local exhibits = Instance.new("IntValue")
-    exhibits.Name = "Exhibits"
-    exhibits.Value = 0
-    exhibits.Parent = leaderstats
-end
-
-Players.PlayerAdded:Connect(setupPlayer)
-for _, player in ipairs(Players:GetPlayers()) do setupPlayer(player) end
-
-local function unlockNext(index)
-    local nextModel = ordered[index + 1]
-    if not nextModel then return end
-    local pad = nextModel:FindFirstChild("PurchasePad")
-    local prompt = pad and pad:FindFirstChild("BuyPrompt")
-    if prompt then prompt.Enabled = true end
-end
-
-for index, model in ipairs(ordered) do
-    local pad = model:WaitForChild("PurchasePad")
-    local prompt = pad:WaitForChild("BuyPrompt")
-    local artifact = model:WaitForChild("Artifact")
-
-    prompt.Triggered:Connect(function(player)
-        if model:GetAttribute("Purchased") then return end
-        if ownerUserId ~= 0 and ownerUserId ~= player.UserId then return end
-        if index > 1 and not ordered[index - 1]:GetAttribute("Purchased") then return end
-
-        local stats = player:FindFirstChild("leaderstats")
-        local cash = stats and stats:FindFirstChild("Cash")
-        local prestige = stats and stats:FindFirstChild("Prestige")
-        local exhibits = stats and stats:FindFirstChild("Exhibits")
-        if not cash or not prestige or not exhibits then return end
-
-        local price = model:GetAttribute("Price") or 0
-        if cash.Value < price then return end
-
-        cash.Value -= price
-        ownerUserId = player.UserId
-        model:SetAttribute("Purchased", true)
-        artifact.Transparency = 0
-        artifact.CanCollide = true
-        pad.Transparency = 0.6
-        pad.Color = Color3.fromRGB(80, 80, 80)
-        prompt.Enabled = false
-
-        totalIncome += model:GetAttribute("Income") or 0
-        purchasedCount += 1
-        exhibits.Value = purchasedCount
-        prestige.Value += model:GetAttribute("PrestigeReward") or 0
-        unlockNext(index)
-    end)
-end
-
-task.spawn(function()
-    while true do
-        task.wait(5)
-        if ownerUserId ~= 0 and totalIncome > 0 then
-            local owner = Players:GetPlayerByUserId(ownerUserId)
-            local stats = owner and owner:FindFirstChild("leaderstats")
-            local cash = stats and stats:FindFirstChild("Cash")
-            if cash then cash.Value += totalIncome end
-        end
-    end
-end)
-]=]
-server.Parent = serverScriptService
-
-local starterPlayerScripts = starterPlayer:FindFirstChild("StarterPlayerScripts")
-if not starterPlayerScripts then
-    starterPlayerScripts = Instance.new("StarterPlayerScripts")
-    starterPlayerScripts.Name = "StarterPlayerScripts"
-    starterPlayerScripts.Parent = starterPlayer
-end
-
-local client = Instance.new("LocalScript")
-client.Name = "MuseuEmpireUI"
-client.Source = [=[
-local Players = game:GetService("Players")
-local player = Players.LocalPlayer
-
-local gui = Instance.new("ScreenGui")
-gui.Name = "MuseuEmpireHUD"
-gui.ResetOnSpawn = false
-gui.DisplayOrder = 1000
-gui.Parent = player:WaitForChild("PlayerGui")
-
-local panel = Instance.new("Frame")
-panel.Position = UDim2.fromOffset(14, 14)
-panel.Size = UDim2.fromOffset(260, 116)
-panel.BackgroundColor3 = Color3.fromRGB(18, 22, 28)
-panel.BackgroundTransparency = 0.08
-panel.Parent = gui
-local corner = Instance.new("UICorner")
-corner.CornerRadius = UDim.new(0, 14)
-corner.Parent = panel
-
-local function label(y, height, textSize, color)
-    local item = Instance.new("TextLabel")
-    item.Position = UDim2.fromOffset(14, y)
-    item.Size = UDim2.new(1, -28, 0, height)
-    item.BackgroundTransparency = 1
-    item.TextXAlignment = Enum.TextXAlignment.Left
-    item.TextColor3 = color
-    item.Font = Enum.Font.GothamBold
-    item.TextSize = textSize
-    item.Parent = panel
-    return item
-end
-
-local title = label(8, 24, 17, Color3.fromRGB(245, 208, 108))
-title.Text = "MUSEU EMPIRE"
-local money = label(36, 22, 16, Color3.fromRGB(120, 240, 150))
-local prestige = label(60, 20, 14, Color3.fromRGB(245, 208, 108))
-local exhibits = label(82, 20, 14, Color3.fromRGB(220, 220, 225))
-
-local objective = Instance.new("TextLabel")
-objective.AnchorPoint = Vector2.new(0.5, 1)
-objective.Position = UDim2.new(0.5, 0, 1, -22)
-objective.Size = UDim2.new(0.9, 0, 0, 58)
-objective.BackgroundColor3 = Color3.fromRGB(18, 22, 28)
-objective.BackgroundTransparency = 0.1
-objective.TextColor3 = Color3.fromRGB(255, 255, 255)
-objective.Font = Enum.Font.GothamBold
-objective.TextSize = 15
-objective.TextWrapped = true
-objective.Parent = gui
-local objectiveCorner = Instance.new("UICorner")
-objectiveCorner.CornerRadius = UDim.new(0, 14)
-objectiveCorner.Parent = objective
-
-local stats = player:WaitForChild("leaderstats")
-local cash = stats:WaitForChild("Cash")
-local prestigeValue = stats:WaitForChild("Prestige")
-local exhibitsValue = stats:WaitForChild("Exhibits")
-
-local objectives = {
-    [0] = "OBJETIVO: compre a Relíquia Antiga por $100.",
-    [1] = "OBJETIVO: junte $350 e compre o Cristal Imperial.",
-    [2] = "OBJETIVO: expanda até a Coroa Dourada por $900.",
-    [3] = "MUSEU INICIAL COMPLETO! Próximo passo: visitantes e expansão."
+local folder=Instance.new("Folder") folder.Name="Properties" folder.Parent=world
+local data={
+    {"Casa Inicial",-115,105,500,25,Color3.fromRGB(82,175,235)},
+    {"Loja de Bairro",115,105,1400,70,Color3.fromRGB(245,166,64)},
+    {"Prédio Residencial",-115,-105,4200,210,Color3.fromRGB(170,116,235)},
+    {"Supermercado",115,-105,9500,475,Color3.fromRGB(64,190,120)},
+    {"Hotel Central",-205,0,24000,1200,Color3.fromRGB(238,205,91)},
+    {"Arranha-céu",205,0,65000,3250,Color3.fromRGB(64,145,220)},
 }
 
-local function update()
-    money.Text = "$ " .. tostring(cash.Value)
-    prestige.Text = "★ Prestígio: " .. tostring(prestigeValue.Value)
-    exhibits.Text = "Exposições: " .. tostring(exhibitsValue.Value) .. "/3"
-    objective.Text = objectives[exhibitsValue.Value] or objectives[3]
+for index,d in ipairs(data) do
+    local name,x,z,price,income,color=table.unpack(d)
+    local model=Instance.new("Model") model.Name="Property"..index model.Parent=folder
+    model:SetAttribute("Index",index) model:SetAttribute("DisplayName",name) model:SetAttribute("Price",price)
+    model:SetAttribute("BaseIncome",income) model:SetAttribute("OwnerUserId",0) model:SetAttribute("Level",0)
+    part("Plot",Vector3.new(68,1,68),Vector3.new(x,.6,z),Color3.fromRGB(111,183,98),"Grass",model)
+    local height=12+index*5
+    part("Building",Vector3.new(40,height,34),Vector3.new(x,1.1+height/2,z),color,"Concrete",model)
+    part("Roof",Vector3.new(44,2,38),Vector3.new(x,2.1+height,z),Color3.fromRGB(42,50,64),"Metal",model)
+    for floorIndex=1,math.max(1,math.floor(height/7)) do
+        for _,dx in ipairs({-13,0,13}) do
+            local w=part("Window",Vector3.new(7,3.5,.4),Vector3.new(x+dx,3+floorIndex*6,z+17.2),Color3.fromRGB(155,225,255),"Glass",model)
+            w.Transparency=.18 w.CanCollide=false
+        end
+    end
+    local pad=part("ActionPad",Vector3.new(15,1,15),Vector3.new(x,1.2,z+27),Color3.fromRGB(48,210,112),"Neon",model)
+    local function prompt(promptName, action, object, key, duration)
+        local p=Instance.new("ProximityPrompt") p.Name=promptName p.ActionText=action p.ObjectText=object
+        p.KeyboardKeyCode=key p.HoldDuration=duration p.MaxActivationDistance=14 p.RequiresLineOfSight=false p.Parent=pad
+        return p
+    end
+    prompt("BuyPrompt","Comprar imóvel",name.." · $"..price,"E",.35)
+    local up=prompt("UpgradePrompt","Melhorar imóvel","Nível 1","R",.35) up.Enabled=false
+    local sell=prompt("SellPrompt","Vender imóvel","Receber 70%","T",1.2) sell.Enabled=false
+    local bg=Instance.new("BillboardGui") bg.Name="PropertyBillboard" bg.Size=UDim2.fromOffset(280,88) bg.StudsOffset=Vector3.new(0,5.5,0) bg.AlwaysOnTop=true bg.Parent=pad
+    local label=Instance.new("TextLabel") label.Name="Label" label.Size=UDim2.fromScale(1,1) label.BackgroundColor3=Color3.fromRGB(17,24,36) label.BackgroundTransparency=.08
+    label.TextColor3=Color3.new(1,1,1) label.Text=name.."\n$"..price.." • +$"..income.."/10s" label.Font="GothamBold" label.TextScaled=true label.TextWrapped=true label.Parent=bg
+    local c=Instance.new("UICorner") c.CornerRadius=UDim.new(0,12) c.Parent=label
 end
 
-cash:GetPropertyChangedSignal("Value"):Connect(update)
-prestigeValue:GetPropertyChangedSignal("Value"):Connect(update)
-exhibitsValue:GetPropertyChangedSignal("Value"):Connect(update)
-update()
-]=]
-client.Parent = starterPlayerScripts
+local server=Instance.new("Script") server.Name="InvestorCityServer"
+server.Source=[=[
+local Players=game:GetService("Players")
+local DSS=game:GetService("DataStoreService")
+local store=DSS:GetDataStore("InvestorCity_v1")
+local models=workspace:WaitForChild("InvestorCity").Properties:GetChildren()
+table.sort(models,function(a,b)return a:GetAttribute("Index")<b:GetAttribute("Index")end)
+local profiles={}
 
-fs.write(outputPath, place)
-print("[Museu Empire] exhibition progression prepared")
+local function stats(p)local s=p:FindFirstChild("leaderstats") return s,s and s:FindFirstChild("Cash"),s and s:FindFirstChild("Patrimonio"),s and s:FindFirstChild("Imoveis")end
+local function refresh(m)
+ local uid,level=m:GetAttribute("OwnerUserId") or 0,m:GetAttribute("Level") or 0
+ local price,income=m:GetAttribute("Price"),m:GetAttribute("BaseIncome")
+ local pad=m.ActionPad local buy,up,sell=pad.BuyPrompt,pad.UpgradePrompt,pad.SellPrompt
+ buy.Enabled=uid==0 up.Enabled=uid~=0 and level<5 sell.Enabled=uid~=0
+ if uid==0 then pad.Color=Color3.fromRGB(48,210,112) pad.PropertyBillboard.Label.Text=m:GetAttribute("DisplayName").."\n$"..price.." • +$"..income.."/10s"
+ else local owner=Players:GetPlayerByUserId(uid) pad.Color=Color3.fromRGB(64,145,235)
+  up.ObjectText="Nível "..level.." → "..(level+1).." · $"..math.floor(price*(.55+level*.25))
+  pad.PropertyBillboard.Label.Text=m:GetAttribute("DisplayName").." · Nível "..level.."\nDono: "..(owner and owner.DisplayName or "Investidor").." • +$"..income*(level+1).."/10s" end
+end
+local function recalc(p)
+ local profile=profiles[p] local _,_,worth,count=stats(p) if not profile or not worth then return end
+ local total,owned,income=0,0,0
+ for _,m in ipairs(models)do if m:GetAttribute("OwnerUserId")==p.UserId then local l=m:GetAttribute("Level") or 0 local price=m:GetAttribute("Price") total+=price+math.floor(price*.55*l) income+=m:GetAttribute("BaseIncome")*(l+1) owned+=1 end end
+ profile.income=income worth.Value=total count.Value=owned p:SetAttribute("IncomePerCycle",income)
+end
+local function load(p)
+ local profile={cash=1500,owned={}} local ok,saved=pcall(function()return store:GetAsync("p_"..p.UserId)end) if ok and type(saved)=="table"then profile=saved end
+ profile.cash=tonumber(profile.cash)or 1500 profile.owned=type(profile.owned)=="table"and profile.owned or{} profiles[p]=profile
+ local s=Instance.new("Folder")s.Name="leaderstats"s.Parent=p
+ local cash=Instance.new("IntValue")cash.Name="Cash"cash.Value=profile.cash cash.Parent=s
+ local worth=Instance.new("IntValue")worth.Name="Patrimonio"worth.Parent=s
+ local count=Instance.new("IntValue")count.Name="Imoveis"count.Parent=s
+ for text,l in pairs(profile.owned)do local m=models[tonumber(text)] if m and m:GetAttribute("OwnerUserId")==0 then m:SetAttribute("OwnerUserId",p.UserId)m:SetAttribute("Level",math.clamp(tonumber(l)or 0,0,5))refresh(m)end end recalc(p)
+end
+local function save(p)
+ local profile=profiles[p] local _,cash=stats(p) if not profile or not cash then return end local owned={}
+ for i,m in ipairs(models)do if m:GetAttribute("OwnerUserId")==p.UserId then owned[tostring(i)]=m:GetAttribute("Level")or 0 end end
+ pcall(function()store:SetAsync("p_"..p.UserId,{cash=cash.Value,owned=owned})end)
+end
+Players.PlayerAdded:Connect(load) for _,p in ipairs(Players:GetPlayers())do task.spawn(load,p)end
+for _,m in ipairs(models)do local pad=m.ActionPad
+ pad.BuyPrompt.Triggered:Connect(function(p)if m:GetAttribute("OwnerUserId")~=0 then return end local _,cash=stats(p)local price=m:GetAttribute("Price")if not cash or cash.Value<price then p:SetAttribute("LastNotice","Dinheiro insuficiente")return end cash.Value-=price m:SetAttribute("OwnerUserId",p.UserId)refresh(m)recalc(p)p:SetAttribute("LastNotice","Imóvel comprado!")end)
+ pad.UpgradePrompt.Triggered:Connect(function(p)if m:GetAttribute("OwnerUserId")~=p.UserId then p:SetAttribute("LastNotice","Este imóvel tem outro dono")return end local l=m:GetAttribute("Level")or 0 if l>=5 then return end local cost=math.floor(m:GetAttribute("Price")*(.55+l*.25))local _,cash=stats(p)if not cash or cash.Value<cost then p:SetAttribute("LastNotice","Dinheiro insuficiente")return end cash.Value-=cost m:SetAttribute("Level",l+1)refresh(m)recalc(p)p:SetAttribute("LastNotice","Imóvel melhorado!")end)
+ pad.SellPrompt.Triggered:Connect(function(p)if m:GetAttribute("OwnerUserId")~=p.UserId then return end local l=m:GetAttribute("Level")or 0 local price=m:GetAttribute("Price")local refund=math.floor((price+price*.55*l)*.7)local _,cash=stats(p)cash.Value+=refund m:SetAttribute("OwnerUserId",0)m:SetAttribute("Level",0)refresh(m)recalc(p)p:SetAttribute("LastNotice","Vendido por $"..refund)end) refresh(m)
+end
+task.spawn(function()while true do task.wait(10)for p,profile in pairs(profiles)do local _,cash=stats(p)if cash and profile.income>0 then cash.Value+=profile.income end end end end)
+Players.PlayerRemoving:Connect(function(p)save(p)for _,m in ipairs(models)do if m:GetAttribute("OwnerUserId")==p.UserId then m:SetAttribute("OwnerUserId",0)m:SetAttribute("Level",0)refresh(m)end end profiles[p]=nil end)
+game:BindToClose(function()for p in pairs(profiles)do task.spawn(save,p)end task.wait(2)end)
+]=] server.Parent=serverScripts
+
+local scripts=starterPlayer:FindFirstChild("StarterPlayerScripts")or Instance.new("StarterPlayerScripts") scripts.Name="StarterPlayerScripts" scripts.Parent=starterPlayer
+local client=Instance.new("LocalScript") client.Name="InvestorCityHUD"
+client.Source=[=[
+local Players=game:GetService("Players")local TweenService=game:GetService("TweenService")local p=Players.LocalPlayer
+local gui=Instance.new("ScreenGui")gui.Name="InvestorCityHUD"gui.ResetOnSpawn=false gui.Parent=p:WaitForChild("PlayerGui")
+local panel=Instance.new("Frame")panel.Position=UDim2.fromOffset(14,14)panel.Size=UDim2.fromOffset(300,142)panel.BackgroundColor3=Color3.fromRGB(15,24,38)panel.BackgroundTransparency=.05 panel.Parent=gui
+local corner=Instance.new("UICorner")corner.CornerRadius=UDim.new(0,16)corner.Parent=panel
+local function label(y,h,size,color)local x=Instance.new("TextLabel")x.Position=UDim2.fromOffset(16,y)x.Size=UDim2.new(1,-32,0,h)x.BackgroundTransparency=1 x.TextXAlignment="Left"x.Font="GothamBold"x.TextSize=size x.TextColor3=color x.Parent=panel return x end
+local title=label(9,25,18,Color3.fromRGB(105,184,255))title.Text="CIDADE DE INVESTIDORES"
+local money=label(40,27,21,Color3.fromRGB(92,235,145))local income=label(70,20,15,Color3.fromRGB(150,220,175))local assets=label(94,20,14,Color3.fromRGB(230,235,245))local owned=label(116,18,14,Color3.fromRGB(230,235,245))
+local objective=Instance.new("TextLabel")objective.AnchorPoint=Vector2.new(.5,1)objective.Position=UDim2.new(.5,0,1,-18)objective.Size=UDim2.new(.88,0,0,54)objective.BackgroundColor3=Color3.fromRGB(15,24,38)objective.BackgroundTransparency=.06 objective.TextColor3=Color3.new(1,1,1)objective.Font="GothamBold"objective.TextSize=15 objective.TextWrapped=true objective.Text="Comece comprando a Casa Inicial. A renda entra a cada 10 segundos."objective.Parent=gui
+local oc=Instance.new("UICorner")oc.CornerRadius=UDim.new(0,14)oc.Parent=objective
+local notice=Instance.new("TextLabel")notice.AnchorPoint=Vector2.new(.5,0)notice.Position=UDim2.new(.5,0,0,18)notice.Size=UDim2.new(.7,0,0,48)notice.BackgroundColor3=Color3.fromRGB(25,37,56)notice.BackgroundTransparency=1 notice.TextTransparency=1 notice.TextColor3=Color3.new(1,1,1)notice.Font="GothamBold"notice.TextSize=16 notice.Parent=gui
+local nc=Instance.new("UICorner")nc.CornerRadius=UDim.new(0,14)nc.Parent=notice
+local s=p:WaitForChild("leaderstats")local cash=s:WaitForChild("Cash")local worth=s:WaitForChild("Patrimonio")local count=s:WaitForChild("Imoveis")
+local function update()money.Text="$ "..cash.Value income.Text="+$"..(p:GetAttribute("IncomePerCycle")or 0).." a cada 10s"assets.Text="Patrimônio: $"..worth.Value owned.Text="Imóveis: "..count.Value.."/6"end
+for _,v in ipairs({cash,worth,count})do v:GetPropertyChangedSignal("Value"):Connect(update)end p:GetAttributeChangedSignal("IncomePerCycle"):Connect(update)
+p:GetAttributeChangedSignal("LastNotice"):Connect(function()notice.Text=p:GetAttribute("LastNotice")or""TweenService:Create(notice,TweenInfo.new(.2),{BackgroundTransparency=.08,TextTransparency=0}):Play()task.wait(2.4)TweenService:Create(notice,TweenInfo.new(.35),{BackgroundTransparency=1,TextTransparency=1}):Play()end)update()
+]=] client.Parent=scripts
+
+fs.write(outputPath,place)
+print("[Cidade de Investidores] playable city prepared")

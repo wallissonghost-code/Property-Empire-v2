@@ -1,4 +1,4 @@
-name: Publish Museu Empire to Roblox
+name: Publish Cidade de Investidores to Roblox
 
 on:
   push:
@@ -72,9 +72,9 @@ jobs:
         run: |
           chmod +x scripts/prepare-place.sh
           ./scripts/prepare-place.sh
-          test -s Museu-Empire.rbxl
+          test -s Cidade-de-Investidores.rbxl
 
-      - name: Publish Museu Empire
+      - name: Publish Cidade de Investidores
         shell: bash
         run: |
           set -euo pipefail
@@ -82,7 +82,7 @@ jobs:
             -X POST \
             -H "x-api-key: $ROBLOX_API_KEY" \
             -H "Content-Type: application/octet-stream" \
-            --data-binary @Museu-Empire.rbxl \
+            --data-binary @Cidade-de-Investidores.rbxl \
             "https://apis.roblox.com/universes/v1/${UNIVERSE_ID}/places/${PLACE_ID}/versions?versionType=Published")
           echo "publish_http=$HTTP_CODE"
           cat publish-response.txt || true
@@ -95,12 +95,12 @@ jobs:
         run: |
           mkdir -p .deploy
           cat > .deploy/last-publish.txt <<EOF
-          project=Museu Empire
+          project=Cidade de Investidores
           place_id=${PLACE_ID}
           universe_id=${UNIVERSE_ID}
           source_commit=${GITHUB_SHA}
           build=clean-from-scratch
-          artifact=Museu-Empire.rbxl
+          artifact=Cidade-de-Investidores.rbxl
           transformer=rbxmk-v0.9.1
           published_at_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)
           status=accepted_by_roblox_open_cloud
@@ -113,5 +113,5 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add .deploy/last-publish.txt .deploy/roblox-diagnostics.txt
           if git diff --cached --quiet; then exit 0; fi
-          git commit -m "chore: record Museu Empire publish"
+          git commit -m "chore: record Cidade de Investidores publish"
           git push
