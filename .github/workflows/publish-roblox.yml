@@ -28,7 +28,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test -n "$ROBLOX_API_KEY"\n          test -n "$PLACE_ID"
+          test -n "$ROBLOX_API_KEY"
+          test -n "$PLACE_ID"
           test -f scripts/current-place.rbxmk.lua
           test -f scripts/prepare-place.sh
 
