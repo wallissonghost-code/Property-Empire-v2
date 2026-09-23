@@ -1,4 +1,4 @@
-name: Publish Cidade de Investidores to Roblox
+name: Publish CIDADE PROSPERA to Roblox
 
 on:
   push:
@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       UNIVERSE_ID: "10757803326"
-      PLACE_ID: "115967612388956"
+      PLACE_ID: "80220344568601"
       ROBLOX_API_KEY: ${{ secrets.MUSEU_EMPIRE_API_KEY }}
 
     steps:
@@ -82,7 +82,7 @@ jobs:
           ./scripts/prepare-place.sh
           test -s Cidade-de-Investidores.rbxl
 
-      - name: Publish Cidade de Investidores
+      - name: Publish CIDADE PROSPERA
         shell: bash
         run: |
           set -euo pipefail
@@ -103,7 +103,7 @@ jobs:
         run: |
           mkdir -p .deploy
           cat > .deploy/last-publish.txt <<EOF
-          project=Cidade de Investidores
+          project=CIDADE PROSPERA
           place_id=${PLACE_ID}
           universe_id=${UNIVERSE_ID}
           source_commit=${GITHUB_SHA}
@@ -121,5 +121,5 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add .deploy/last-publish.txt .deploy/roblox-diagnostics.txt
           if git diff --cached --quiet; then exit 0; fi
-          git commit -m "chore: record Cidade de Investidores publish"
+          git commit -m "chore: record CIDADE PROSPERA publish"
           git push
