@@ -13,7 +13,7 @@ jobs:
     if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && contains(github.event.head_commit.message, '[DEPLOY_ROBLOX]')) }}
     runs-on: ubuntu-latest
     env:
-      UNIVERSE_ID: "10757803326"
+      UNIVERSE_ID: ""
       PLACE_ID: "80220344568601"
       ROBLOX_API_KEY: ${{ secrets.MUSEU_EMPIRE_API_KEY }}
 
@@ -28,9 +28,19 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test -n "$ROBLOX_API_KEY"
+          test -n "$ROBLOX_API_KEY"\n          test -n "$PLACE_ID"
           test -f scripts/current-place.rbxmk.lua
           test -f scripts/prepare-place.sh
+
+      - name: Resolve CIDADE PROSPERA universe
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsS "https://apis.roblox.com/universes/v1/places/${PLACE_ID}/universe" -o /tmp/place-universe.json
+          RESOLVED_UNIVERSE_ID=$(grep -oE '"universeId":[0-9]+' /tmp/place-universe.json | grep -oE "[0-9]+")
+          test -n "$RESOLVED_UNIVERSE_ID"
+          echo "UNIVERSE_ID=$RESOLVED_UNIVERSE_ID" >> "$GITHUB_ENV"
+          echo "Resolved target universe from Place ID"
 
       - name: Check Roblox target
         shell: bash
