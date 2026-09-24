@@ -4,6 +4,8 @@ local TweenService = game:GetService("TweenService")
 
 local MenuUI = require(script.Parent.MenuUI)
 local remote = ReplicatedStorage:WaitForChild("MainMenuState")
+local purchaseRemote = ReplicatedStorage:WaitForChild("SkillPurchaseRequest")
+local stateRemote = ReplicatedStorage:WaitForChild("SkillState")
 local view = MenuUI.create(Players.LocalPlayer:WaitForChild("PlayerGui"))
 
 local function hide()
@@ -22,6 +24,18 @@ local function show()
 end
 
 view.close.Activated:Connect(hide)
+view.buyLaserEyes.Activated:Connect(function()
+	purchaseRemote:FireServer("LaserEyes")
+end)
+
+stateRemote.OnClientEvent:Connect(function(state)
+	if state.laserEyes then
+		view.buyLaserEyes.Text = "COMPRADO"
+		view.buyLaserEyes.Active = false
+		view.buyLaserEyes.BackgroundColor3 = Color3.fromRGB(36, 96, 67)
+		view.buyLaserEyes.TextColor3 = Color3.fromRGB(220, 240, 228)
+	end
+end)
 
 remote.OnClientEvent:Connect(function(isOpen)
 	if isOpen then
