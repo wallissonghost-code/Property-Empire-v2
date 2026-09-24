@@ -1,5 +1,4 @@
 local Players = game:GetService("Players")
-local PathfindingService = game:GetService("PathfindingService")
 local RunService = game:GetService("RunService")
 
 local MOB_CONFIG = {
@@ -10,7 +9,10 @@ local MOB_CONFIG = {
 
 local CHASE_RANGE = 120
 local WALK_SPEED = 10
-local PATH_REFRESH = 0.65
+local STOP_DISTANCE = 3.5
+local EDGE_LOOKAHEAD = 4
+local GROUND_PROBE_HEIGHT = 4
+local GROUND_PROBE_DEPTH = 12
 local VOID_Y = -20
 local mobs = {}
 
@@ -20,10 +22,11 @@ local function createPart(model, name, size, position, color, transparency)
 	part.Size = size
 	part.Position = position
 	part.Anchored = false
-	part.CanCollide = name ~= "HumanoidRootPart"
+	part.CanCollide = false
 	part.Color = color
 	part.Transparency = transparency or 0
 	part.Material = Enum.Material.SmoothPlastic
+	part.Massless = name ~= "HumanoidRootPart"
 	part.Parent = model
 	return part
 end
@@ -40,6 +43,8 @@ local function createMob(config)
 	model.Name = config.name
 
 	local root = createPart(model, "HumanoidRootPart", Vector3.new(2, 2, 1), config.position, Color3.fromRGB(42, 45, 48), 1)
+	root.RootPriority = 127
+	root.CanCollide = true
 	local torso = createPart(model, "Torso", Vector3.new(3, 4, 2), config.position, Color3.fromRGB(55, 60, 64))
 	local head = createPart(model, "Head", Vector3.new(2.4, 2.4, 2.4), config.position + Vector3.new(0, 3.2, 0), Color3.fromRGB(75, 80, 84))
 
@@ -50,6 +55,7 @@ local function createMob(config)
 	humanoid.MaxHealth = config.health
 	humanoid.Health = config.health
 	humanoid.WalkSpeed = WALK_SPEED
+	humanoid.AutoRotate = true
 	humanoid.DisplayName = string.format("%s HP", config.health)
 	humanoid.HealthDisplayType = Enum.HumanoidHealthDisplayType.AlwaysOn
 	humanoid.NameDisplayDistance = 60
@@ -65,67 +71,71 @@ local function createMob(config)
 		humanoid = humanoid,
 		root = root,
 		spawnCFrame = CFrame.new(config.position),
-		nextPathAt = 0,
 	})
 end
 
-local function nearestGroundedPlayer(position)
+local function nearestPlayer(position)
 	local bestRoot
 	local bestDistance = CHASE_RANGE
 	for _, player in Players:GetPlayers() do
 		local character = player.Character
 		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 		local root = character and character:FindFirstChild("HumanoidRootPart")
-		if humanoid and root and humanoid.Health > 0 and humanoid.FloorMaterial ~= Enum.Material.Air then
-			local flatOffset = Vector3.new(root.Position.X - position.X, 0, root.Position.Z - position.Z)
-			local distance = flatOffset.Magnitude
+		if humanoid and root and humanoid.Health > 0 then
+			local offset = Vector3.new(root.Position.X - position.X, 0, root.Position.Z - position.Z)
+			local distance = offset.Magnitude
 			if distance < bestDistance then
 				bestDistance = distance
 				bestRoot = root
 			end
 		end
 	end
-	return bestRoot
+	return bestRoot, bestDistance
 end
 
-local function groundBelow(mob, position)
+local function hasGroundAt(mob, position)
 	local params = RaycastParams.new()
 	params.FilterType = Enum.RaycastFilterType.Exclude
 	params.FilterDescendantsInstances = {mob.model}
 	params.IgnoreWater = false
-	return workspace:Raycast(position + Vector3.new(0, 2, 0), Vector3.new(0, -10, 0), params)
+	local origin = position + Vector3.new(0, GROUND_PROBE_HEIGHT, 0)
+	return workspace:Raycast(origin, Vector3.new(0, -GROUND_PROBE_DEPTH, 0), params) ~= nil
 end
 
 local function recoverMob(mob)
+	mob.humanoid:Move(Vector3.zero)
 	mob.root.AssemblyLinearVelocity = Vector3.zero
 	mob.root.AssemblyAngularVelocity = Vector3.zero
 	mob.model:PivotTo(mob.spawnCFrame)
 	mob.humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
 end
 
-local function chase(mob, targetRoot)
-	if os.clock() < mob.nextPathAt then return end
-	mob.nextPathAt = os.clock() + PATH_REFRESH
-
-	local path = PathfindingService:CreatePath({
-		AgentRadius = 2,
-		AgentHeight = 6,
-		AgentCanJump = false,
-		WaypointSpacing = 4,
-	})
-
-	local success = pcall(function()
-		path:ComputeAsync(mob.root.Position, targetRoot.Position)
-	end)
-	if not success or path.Status ~= Enum.PathStatus.Success then
+local function chase(mob, targetRoot, distance)
+	if distance <= STOP_DISTANCE then
+		mob.humanoid:Move(Vector3.zero)
 		return
 	end
 
-	local waypoints = path:GetWaypoints()
-	local nextWaypoint = waypoints[2]
-	if nextWaypoint and groundBelow(mob, nextWaypoint.Position) then
-		mob.humanoid:MoveTo(nextWaypoint.Position)
+	local delta = Vector3.new(
+		targetRoot.Position.X - mob.root.Position.X,
+		0,
+		targetRoot.Position.Z - mob.root.Position.Z
+	)
+	if delta.Magnitude <= 0.01 then
+		mob.humanoid:Move(Vector3.zero)
+		return
 	end
+
+	local direction = delta.Unit
+	local probePosition = mob.root.Position + direction * EDGE_LOOKAHEAD
+	if not hasGroundAt(mob, probePosition) then
+		mob.humanoid:Move(Vector3.zero)
+		return
+	end
+
+	-- Humanoid:Move expects a direction vector. Supplying the direction toward
+	-- the player directly removes waypoint ambiguity and keeps the mob facing/chasing the target.
+	mob.humanoid:Move(direction, false)
 end
 
 for _, config in MOB_CONFIG do
@@ -135,12 +145,14 @@ end
 RunService.Heartbeat:Connect(function()
 	for _, mob in mobs do
 		if mob.model.Parent and mob.humanoid.Health > 0 then
-			if mob.root.Position.Y < VOID_Y or not groundBelow(mob, mob.root.Position) then
+			if mob.root.Position.Y < VOID_Y then
+				recoverMob(mob)
+			elseif not hasGroundAt(mob, mob.root.Position) then
 				recoverMob(mob)
 			else
-				local targetRoot = nearestGroundedPlayer(mob.root.Position)
+				local targetRoot, distance = nearestPlayer(mob.root.Position)
 				if targetRoot then
-					chase(mob, targetRoot)
+					chase(mob, targetRoot, distance)
 				else
 					mob.humanoid:Move(Vector3.zero)
 				end
