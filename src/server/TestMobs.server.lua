@@ -1,4 +1,5 @@
 local Players = game:GetService("Players")
+local PathfindingService = game:GetService("PathfindingService")
 local RunService = game:GetService("RunService")
 
 local MOB_CONFIG = {
@@ -9,7 +10,8 @@ local MOB_CONFIG = {
 
 local CHASE_RANGE = 120
 local WALK_SPEED = 10
-local UPDATE_INTERVAL = 0.15
+local PATH_REFRESH = 0.65
+local VOID_Y = -20
 local mobs = {}
 
 local function createPart(model, name, size, position, color, transparency)
@@ -58,18 +60,25 @@ local function createMob(config)
 	model.Parent = workspace
 	root:SetNetworkOwner(nil)
 
-	table.insert(mobs, {model = model, humanoid = humanoid, root = root})
+	table.insert(mobs, {
+		model = model,
+		humanoid = humanoid,
+		root = root,
+		spawnCFrame = CFrame.new(config.position),
+		nextPathAt = 0,
+	})
 end
 
-local function nearestPlayer(position)
+local function nearestGroundedPlayer(position)
 	local bestRoot
 	local bestDistance = CHASE_RANGE
 	for _, player in Players:GetPlayers() do
 		local character = player.Character
 		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 		local root = character and character:FindFirstChild("HumanoidRootPart")
-		if humanoid and root and humanoid.Health > 0 then
-			local distance = (root.Position - position).Magnitude
+		if humanoid and root and humanoid.Health > 0 and humanoid.FloorMaterial ~= Enum.Material.Air then
+			local flatOffset = Vector3.new(root.Position.X - position.X, 0, root.Position.Z - position.Z)
+			local distance = flatOffset.Magnitude
 			if distance < bestDistance then
 				bestDistance = distance
 				bestRoot = root
@@ -79,21 +88,62 @@ local function nearestPlayer(position)
 	return bestRoot
 end
 
+local function groundBelow(mob, position)
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	params.FilterDescendantsInstances = {mob.model}
+	params.IgnoreWater = false
+	return workspace:Raycast(position + Vector3.new(0, 2, 0), Vector3.new(0, -10, 0), params)
+end
+
+local function recoverMob(mob)
+	mob.root.AssemblyLinearVelocity = Vector3.zero
+	mob.root.AssemblyAngularVelocity = Vector3.zero
+	mob.model:PivotTo(mob.spawnCFrame)
+	mob.humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+end
+
+local function chase(mob, targetRoot)
+	if os.clock() < mob.nextPathAt then return end
+	mob.nextPathAt = os.clock() + PATH_REFRESH
+
+	local path = PathfindingService:CreatePath({
+		AgentRadius = 2,
+		AgentHeight = 6,
+		AgentCanJump = false,
+		WaypointSpacing = 4,
+	})
+
+	local success = pcall(function()
+		path:ComputeAsync(mob.root.Position, targetRoot.Position)
+	end)
+	if not success or path.Status ~= Enum.PathStatus.Success then
+		return
+	end
+
+	local waypoints = path:GetWaypoints()
+	local nextWaypoint = waypoints[2]
+	if nextWaypoint and groundBelow(mob, nextWaypoint.Position) then
+		mob.humanoid:MoveTo(nextWaypoint.Position)
+	end
+end
+
 for _, config in MOB_CONFIG do
 	createMob(config)
 end
 
-local elapsed = 0
-RunService.Heartbeat:Connect(function(dt)
-	elapsed += dt
-	if elapsed < UPDATE_INTERVAL then return end
-	elapsed = 0
-
+RunService.Heartbeat:Connect(function()
 	for _, mob in mobs do
 		if mob.model.Parent and mob.humanoid.Health > 0 then
-			local targetRoot = nearestPlayer(mob.root.Position)
-			if targetRoot then
-				mob.humanoid:MoveTo(targetRoot.Position)
+			if mob.root.Position.Y < VOID_Y or not groundBelow(mob, mob.root.Position) then
+				recoverMob(mob)
+			else
+				local targetRoot = nearestGroundedPlayer(mob.root.Position)
+				if targetRoot then
+					chase(mob, targetRoot)
+				else
+					mob.humanoid:Move(Vector3.zero)
+				end
 			end
 		end
 	end
