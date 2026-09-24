@@ -2,6 +2,7 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 
 local AltitudeUI = require(script.Parent.AltitudeUI)
+local FallSurvivalTest = require(script.Parent.FallSurvivalTest)
 local player = Players.LocalPlayer
 local view = AltitudeUI.create(player:WaitForChild("PlayerGui"))
 
@@ -23,6 +24,7 @@ RunService.RenderStepped:Connect(function(dt)
 	if not root then
 		AltitudeUI.setAltitude(view, 0)
 		AltitudeUI.setSpeed(view, 0)
+		AltitudeUI.setFallTest(view, nil)
 		return
 	end
 
@@ -31,4 +33,7 @@ RunService.RenderStepped:Connect(function(dt)
 	local altitude = result and math.max(0, root.Position.Y - result.Position.Y - FEET_OFFSET) or math.max(0, root.Position.Y - FEET_OFFSET)
 	AltitudeUI.setAltitude(view, altitude)
 	AltitudeUI.setSpeed(view, root.AssemblyLinearVelocity.Magnitude)
+	local verticalVelocity = root.AssemblyLinearVelocity.Y
+	local prediction = FallSurvivalTest.predict(altitude, verticalVelocity)
+	AltitudeUI.setFallTest(view, prediction)
 end)
