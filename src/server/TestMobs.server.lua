@@ -14,6 +14,7 @@ local EDGE_LOOKAHEAD = 4
 local GROUND_PROBE_HEIGHT = 4
 local GROUND_PROBE_DEPTH = 12
 local VOID_Y = -20
+local RESPAWN_DELAY = 4
 local mobs = {}
 
 local function createPart(model, name, size, position, color, transparency)
@@ -56,11 +57,17 @@ local function createMob(config)
 	humanoid.Health = config.health
 	humanoid.WalkSpeed = WALK_SPEED
 	humanoid.AutoRotate = true
-	humanoid.DisplayName = string.format("%s HP", config.health)
+	humanoid.DisplayName = string.format("%d HP", config.health)
 	humanoid.HealthDisplayType = Enum.HumanoidHealthDisplayType.AlwaysOn
 	humanoid.NameDisplayDistance = 60
 	humanoid.HealthDisplayDistance = 60
 	humanoid.Parent = model
+
+	local function updateHealthDisplay()
+		humanoid.DisplayName = string.format("%d HP", math.max(0, math.ceil(humanoid.Health)))
+	end
+	humanoid.HealthChanged:Connect(updateHealthDisplay)
+	updateHealthDisplay()
 
 	model.PrimaryPart = root
 	model.Parent = workspace
@@ -78,6 +85,8 @@ local function createMob(config)
 		humanoid = humanoid,
 		root = root,
 		spawnCFrame = CFrame.new(config.position),
+		config = config,
+		dead = false,
 	})
 end
 
@@ -149,9 +158,24 @@ for _, config in MOB_CONFIG do
 	createMob(config)
 end
 
+local function scheduleRespawn(mob)
+	if mob.dead then return end
+	mob.dead = true
+	mob.humanoid:Move(Vector3.zero)
+	local config = mob.config
+	local oldModel = mob.model
+	task.delay(RESPAWN_DELAY, function()
+		if oldModel.Parent then oldModel:Destroy() end
+		createMob(config)
+	end)
+end
+
 RunService.Heartbeat:Connect(function()
 	for _, mob in mobs do
-		if mob.model.Parent and mob.humanoid.Health > 0 then
+		if mob.model.Parent and not mob.dead then
+			if mob.humanoid.Health <= 0 then
+				scheduleRespawn(mob)
+			else
 			if mob.root.Position.Y < VOID_Y then
 				recoverMob(mob)
 			elseif not hasGroundAt(mob, mob.root.Position) then
@@ -163,6 +187,7 @@ RunService.Heartbeat:Connect(function()
 				else
 					mob.humanoid:Move(Vector3.zero)
 				end
+			end
 			end
 		end
 	end
