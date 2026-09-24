@@ -7,6 +7,7 @@ local player = Players.LocalPlayer
 local view = FlightUI.create(player:WaitForChild("PlayerGui"))
 
 local flying = false
+local verticalInput = 0
 local connection
 local attachment
 local velocity
@@ -15,6 +16,7 @@ local SPEED = 42
 
 local function stopFlight()
 	flying = false
+	verticalInput = 0
 	if connection then connection:Disconnect() connection = nil end
 	if velocity then velocity:Destroy() velocity = nil end
 	if orientation then orientation:Destroy() orientation = nil end
@@ -44,7 +46,6 @@ local function startFlight()
 	orientation.Name = "FlightOrientation"
 	orientation.Attachment0 = attachment
 	orientation.Mode = Enum.OrientationAlignmentMode.OneAttachment
-	orientation.RigidityEnabled = false
 	orientation.Responsiveness = 18
 	orientation.MaxTorque = math.huge
 	orientation.Parent = root
@@ -58,22 +59,23 @@ local function startFlight()
 			return
 		end
 
-		local camera = workspace.CurrentCamera
-		if not camera then return end
-
 		local move = humanoid.MoveDirection
-		local vertical = 0
-		if UserInputService:IsKeyDown(Enum.KeyCode.Space) then vertical += 1 end
-		if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then vertical -= 1 end
+		local keyboardVertical = 0
+		if UserInputService:IsKeyDown(Enum.KeyCode.Space) then keyboardVertical += 1 end
+		if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then keyboardVertical -= 1 end
+		local vertical = math.clamp(verticalInput + keyboardVertical, -1, 1)
 
-		local direction = move + Vector3.new(0, vertical, 0)
+		local direction = Vector3.new(move.X, vertical, move.Z)
 		if direction.Magnitude > 1 then direction = direction.Unit end
 		velocity.VectorVelocity = direction * SPEED
 
-		local look = camera.CFrame.LookVector
-		local flatLook = Vector3.new(look.X, 0, look.Z)
-		if flatLook.Magnitude > 0.01 then
-			orientation.CFrame = CFrame.lookAt(Vector3.zero, flatLook.Unit)
+		local camera = workspace.CurrentCamera
+		if camera then
+			local look = camera.CFrame.LookVector
+			local flatLook = Vector3.new(look.X, 0, look.Z)
+			if flatLook.Magnitude > 0.01 then
+				orientation.CFrame = CFrame.lookAt(Vector3.zero, flatLook.Unit)
+			end
 		end
 	end)
 end
@@ -82,7 +84,22 @@ local function toggleFlight()
 	if flying then stopFlight() else startFlight() end
 end
 
+local function bindHold(button, value)
+	button.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+			verticalInput = value
+		end
+	end)
+	button.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+			if verticalInput == value then verticalInput = 0 end
+		end
+	end)
+end
+
 view.button.Activated:Connect(toggleFlight)
+bindHold(view.up, 1)
+bindHold(view.down, -1)
 
 UserInputService.InputBegan:Connect(function(input, processed)
 	if processed then return end
@@ -91,6 +108,4 @@ UserInputService.InputBegan:Connect(function(input, processed)
 	end
 end)
 
-player.CharacterAdded:Connect(function()
-	stopFlight()
-end)
+player.CharacterAdded:Connect(stopFlight)
