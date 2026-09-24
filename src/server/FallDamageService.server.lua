@@ -1,9 +1,9 @@
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 
-local SAFE_FALL_SPEED = 55
-local LETHAL_FALL_SPEED = 115
-local MAX_NONLETHAL_FRACTION = 0.92
+local SAFE_FALL_SPEED = 70
+local LETHAL_FALL_SPEED = 300
+local MAX_NONLETHAL_FRACTION = 0.95
 
 local function calculateDamage(humanoid, impactSpeed)
 	if impactSpeed <= SAFE_FALL_SPEED then
@@ -14,7 +14,7 @@ local function calculateDamage(humanoid, impactSpeed)
 	end
 
 	local severity = (impactSpeed - SAFE_FALL_SPEED) / (LETHAL_FALL_SPEED - SAFE_FALL_SPEED)
-	local fraction = severity * severity * MAX_NONLETHAL_FRACTION
+	local fraction = severity ^ 1.45 * MAX_NONLETHAL_FRACTION
 	return humanoid.MaxHealth * fraction
 end
 
