@@ -1,34 +1,20 @@
 local FlightUI = {}
 
-function FlightUI.create(playerGui)
-	local gui = Instance.new("ScreenGui")
-	gui.Name = "FlightControls"
-	gui.ResetOnSpawn = false
-	gui.DisplayOrder = 5
-	gui.Parent = playerGui
-
+local function makeButton(parent, name, text, position)
 	local button = Instance.new("TextButton")
-	button.Name = "FlyButton"
+	button.Name = name
 	button.AnchorPoint = Vector2.new(1, 1)
-	button.Position = UDim2.new(1, -112, 1, -118)
-	button.Size = UDim2.fromOffset(72, 72)
+	button.Position = position
+	button.Size = UDim2.fromOffset(64, 64)
 	button.BackgroundColor3 = Color3.fromRGB(28, 32, 36)
 	button.BackgroundTransparency = 0.08
 	button.AutoButtonColor = false
-	button.Text = "VOAR"
+	button.Text = text
 	button.TextColor3 = Color3.fromRGB(245, 247, 248)
 	button.Font = Enum.Font.GothamBold
 	button.TextScaled = true
-	button.Parent = gui
-
-	local aspect = Instance.new("UIAspectRatioConstraint")
-	aspect.AspectRatio = 1
-	aspect.Parent = button
-
-	local size = Instance.new("UISizeConstraint")
-	size.MinSize = Vector2.new(58, 58)
-	size.MaxSize = Vector2.new(76, 76)
-	size.Parent = button
+	button.Visible = false
+	button.Parent = parent
 
 	local corner = Instance.new("UICorner")
 	corner.CornerRadius = UDim.new(1, 0)
@@ -40,17 +26,35 @@ function FlightUI.create(playerGui)
 	stroke.Thickness = 1.5
 	stroke.Parent = button
 
-	local padding = Instance.new("UIPadding")
-	padding.PaddingLeft = UDim.new(0.16, 0)
-	padding.PaddingRight = UDim.new(0.16, 0)
-	padding.Parent = button
+	local limit = Instance.new("UITextSizeConstraint")
+	limit.MinTextSize = 13
+	limit.MaxTextSize = 18
+	limit.Parent = button
+	return button
+end
 
-	return {gui = gui, button = button}
+function FlightUI.create(playerGui)
+	local gui = Instance.new("ScreenGui")
+	gui.Name = "FlightControls"
+	gui.ResetOnSpawn = false
+	gui.DisplayOrder = 5
+	gui.Parent = playerGui
+
+	local toggle = makeButton(gui, "FlyButton", "VOAR", UDim2.new(1, -112, 1, -118))
+	toggle.Size = UDim2.fromOffset(72, 72)
+	toggle.Visible = true
+
+	local up = makeButton(gui, "FlyUpButton", "↑", UDim2.new(1, -112, 1, -198))
+	local down = makeButton(gui, "FlyDownButton", "↓", UDim2.new(1, -112, 1, -38))
+
+	return {gui = gui, button = toggle, up = up, down = down}
 end
 
 function FlightUI.setActive(view, active)
 	view.button.Text = active and "POUSAR" or "VOAR"
 	view.button.BackgroundColor3 = active and Color3.fromRGB(36, 96, 67) or Color3.fromRGB(28, 32, 36)
+	view.up.Visible = active
+	view.down.Visible = active
 end
 
 return FlightUI
