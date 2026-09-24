@@ -1,6 +1,8 @@
+local AssetService = game:GetService("AssetService")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 
+local R15_DUMMY_ASSET_ID = 11235072353
 local MOB_CONFIG = {
 	{name = "Mob_100HP", health = 100, position = Vector3.new(-10, 3.5, -28)},
 	{name = "Mob_1000HP", health = 1000, position = Vector3.new(0, 3.5, -28)},
@@ -16,52 +18,114 @@ local GROUND_PROBE_DEPTH = 12
 local VOID_Y = -20
 local RESPAWN_DELAY = 4
 local mobs = {}
+local r15Template
 
-local function createPart(model, name, size, position, color, transparency)
-	local part = Instance.new("Part")
-	part.Name = name
-	part.Size = size
-	part.Position = position
-	part.Anchored = false
-	part.CanCollide = false
-	part.Color = color
-	part.Transparency = transparency or 0
-	part.Material = Enum.Material.SmoothPlastic
-	part.Massless = name ~= "HumanoidRootPart"
-	part.Parent = model
-	return part
+local function stripScripts(instance)
+	for _, descendant in instance:GetDescendants() do
+		if descendant:IsA("LuaSourceContainer") then
+			descendant:Destroy()
+		end
+	end
 end
 
-local function weld(root, part)
-	local joint = Instance.new("WeldConstraint")
-	joint.Part0 = root
-	joint.Part1 = part
-	joint.Parent = root
+local function findRig(container)
+	for _, descendant in container:GetDescendants() do
+		if descendant:IsA("Model")
+			and descendant:FindFirstChildOfClass("Humanoid")
+			and descendant:FindFirstChild("HumanoidRootPart") then
+			return descendant
+		end
+	end
+	return nil
 end
 
-local function createMob(config)
+local function loadR15Template()
+	local success, container = pcall(AssetService.LoadAssetAsync, AssetService, R15_DUMMY_ASSET_ID)
+	if not success or not container then
+		warn("R15 Dummy asset could not be loaded:", container)
+		return nil
+	end
+
+	stripScripts(container)
+	local rig = findRig(container)
+	if not rig then
+		warn("R15 Dummy asset does not contain a Humanoid rig")
+		container:Destroy()
+		return nil
+	end
+
+	rig.Parent = nil
+	container:Destroy()
+	return rig
+end
+
+local function createFallbackRig(config)
 	local model = Instance.new("Model")
-	model.Name = config.name
-
-	local root = createPart(model, "HumanoidRootPart", Vector3.new(2, 2, 1), config.position, Color3.fromRGB(42, 45, 48), 1)
-	root.RootPriority = 127
+	local root = Instance.new("Part")
+	root.Name = "HumanoidRootPart"
+	root.Size = Vector3.new(2, 2, 1)
+	root.Transparency = 1
 	root.CanCollide = true
-	local torso = createPart(model, "Torso", Vector3.new(3, 4, 2), config.position, Color3.fromRGB(55, 60, 64))
-	local head = createPart(model, "Head", Vector3.new(2.4, 2.4, 2.4), config.position + Vector3.new(0, 3.2, 0), Color3.fromRGB(75, 80, 84))
+	root.Anchored = false
+	root.Position = config.position
+	root.Parent = model
 
-	weld(root, torso)
-	weld(root, head)
+	local torso = Instance.new("Part")
+	torso.Name = "Torso"
+	torso.Size = Vector3.new(3, 4, 2)
+	torso.Position = config.position
+	torso.CanCollide = false
+	torso.Parent = model
+
+	local head = Instance.new("Part")
+	head.Name = "Head"
+	head.Size = Vector3.new(2.4, 2.4, 2.4)
+	head.Position = config.position + Vector3.new(0, 3.2, 0)
+	head.CanCollide = false
+	head.Parent = model
+
+	for _, part in {torso, head} do
+		local weld = Instance.new("WeldConstraint")
+		weld.Part0 = root
+		weld.Part1 = part
+		weld.Parent = root
+	end
 
 	local humanoid = Instance.new("Humanoid")
+	humanoid.Parent = model
+	model.PrimaryPart = root
+	return model
+end
+
+local function prepareRig(config)
+	local model = r15Template and r15Template:Clone() or createFallbackRig(config)
+	model.Name = config.name
+	stripScripts(model)
+
+	local humanoid = model:FindFirstChildOfClass("Humanoid")
+	local root = model:FindFirstChild("HumanoidRootPart")
+	if not humanoid or not root then
+		model:Destroy()
+		return nil
+	end
+
+	for _, descendant in model:GetDescendants() do
+		if descendant:IsA("BasePart") then
+			descendant.Anchored = false
+			descendant.CanCollide = descendant == root
+		end
+	end
+	root.Transparency = 1
+	root.RootPriority = 127
+
 	humanoid.MaxHealth = config.health
 	humanoid.Health = config.health
 	humanoid.WalkSpeed = WALK_SPEED
 	humanoid.AutoRotate = true
-	humanoid.DisplayName = string.format("%d HP", config.health)
+	humanoid.BreakJointsOnDeath = false
 	humanoid.HealthDisplayType = Enum.HumanoidHealthDisplayType.AlwaysOn
 	humanoid.NameDisplayDistance = 60
 	humanoid.HealthDisplayDistance = 60
-	humanoid.Parent = model
 
 	local function updateHealthDisplay()
 		humanoid.DisplayName = string.format("%d HP", math.max(0, math.ceil(humanoid.Health)))
@@ -71,6 +135,8 @@ local function createMob(config)
 
 	model.PrimaryPart = root
 	model.Parent = workspace
+	model:PivotTo(CFrame.new(config.position))
+
 	if _G.AssignMobCollisionGroup then
 		_G.AssignMobCollisionGroup(model)
 	else
@@ -79,7 +145,12 @@ local function createMob(config)
 		end
 	end
 	root:SetNetworkOwner(nil)
+	return model, humanoid, root
+end
 
+local function createMob(config)
+	local model, humanoid, root = prepareRig(config)
+	if not model then return end
 	table.insert(mobs, {
 		model = model,
 		humanoid = humanoid,
@@ -131,31 +202,17 @@ local function chase(mob, targetRoot, distance)
 		mob.humanoid:Move(Vector3.zero)
 		return
 	end
-
-	local delta = Vector3.new(
-		targetRoot.Position.X - mob.root.Position.X,
-		0,
-		targetRoot.Position.Z - mob.root.Position.Z
-	)
+	local delta = Vector3.new(targetRoot.Position.X - mob.root.Position.X, 0, targetRoot.Position.Z - mob.root.Position.Z)
 	if delta.Magnitude <= 0.01 then
 		mob.humanoid:Move(Vector3.zero)
 		return
 	end
-
 	local direction = delta.Unit
-	local probePosition = mob.root.Position + direction * EDGE_LOOKAHEAD
-	if not hasGroundAt(mob, probePosition) then
+	if not hasGroundAt(mob, mob.root.Position + direction * EDGE_LOOKAHEAD) then
 		mob.humanoid:Move(Vector3.zero)
 		return
 	end
-
-	-- Humanoid:Move expects a direction vector. Supplying the direction toward
-	-- the player directly removes waypoint ambiguity and keeps the mob facing/chasing the target.
 	mob.humanoid:Move(direction, false)
-end
-
-for _, config in MOB_CONFIG do
-	createMob(config)
 end
 
 local function scheduleRespawn(mob)
@@ -170,24 +227,25 @@ local function scheduleRespawn(mob)
 	end)
 end
 
+r15Template = loadR15Template()
+if not r15Template then
+	warn("Using fallback test rig. Enable third-party asset loading or make the R15 Dummy available to the experience.")
+end
+
+for _, config in MOB_CONFIG do
+	createMob(config)
+end
+
 RunService.Heartbeat:Connect(function()
 	for _, mob in mobs do
 		if mob.model.Parent and not mob.dead then
 			if mob.humanoid.Health <= 0 then
 				scheduleRespawn(mob)
-			else
-			if mob.root.Position.Y < VOID_Y then
-				recoverMob(mob)
-			elseif not hasGroundAt(mob, mob.root.Position) then
+			elseif mob.root.Position.Y < VOID_Y or not hasGroundAt(mob, mob.root.Position) then
 				recoverMob(mob)
 			else
 				local targetRoot, distance = nearestPlayer(mob.root.Position)
-				if targetRoot then
-					chase(mob, targetRoot, distance)
-				else
-					mob.humanoid:Move(Vector3.zero)
-				end
-			end
+				if targetRoot then chase(mob, targetRoot, distance) else mob.humanoid:Move(Vector3.zero) end
 			end
 		end
 	end
