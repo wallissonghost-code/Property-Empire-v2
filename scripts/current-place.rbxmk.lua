@@ -1,7 +1,7 @@
 local outputPath = ...
 assert(type(outputPath) == "string" and outputPath ~= "", "missing output path")
 
-local place = Instance.new("DataModel")
+local place = game
 place.Name = "Clean Base"
 
 local workspace = place:GetService("Workspace")
@@ -31,5 +31,5 @@ spawn.Size = Vector3.new(6, 1, 6)
 spawn.Position = Vector3.new(0, 1, 0)
 spawn.Parent = workspace
 
-fs.write(outputPath, place)
+place:SaveToFile(outputPath)
 print("[Clean Base] flat place prepared")
