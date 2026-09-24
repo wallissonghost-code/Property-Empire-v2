@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - "default.project.json"
+      - "src/**"
       - ".github/workflows/publish-roblox.yml"
   workflow_dispatch:
 
