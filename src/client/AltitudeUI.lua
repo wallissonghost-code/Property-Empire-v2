@@ -35,7 +35,7 @@ function AltitudeUI.create(playerGui)
 	group.Name = "FlightTelemetry"
 	group.AnchorPoint = Vector2.new(0.5, 0)
 	group.Position = UDim2.new(0.5, 0, 0, 16)
-	group.Size = UDim2.fromOffset(240, 34)
+	group.Size = UDim2.fromOffset(240, 72)
 	group.BackgroundTransparency = 1
 	group.Parent = gui
 
@@ -60,7 +60,22 @@ function AltitudeUI.create(playerGui)
 	local speedLabel = makeLabel(speedFrame, "VEL 000")
 	speedLabel.Name = "Value"
 
-	return {gui = gui, altitude = altitudeLabel, speed = speedLabel}
+	local testLabel = Instance.new("TextLabel")
+	testLabel.Name = "FallSurvivalTest"
+	testLabel.AnchorPoint = Vector2.new(0.5, 0)
+	testLabel.Position = UDim2.new(0.5, 0, 0, 40)
+	testLabel.Size = UDim2.fromOffset(220, 26)
+	testLabel.BackgroundColor3 = Color3.fromRGB(16, 19, 22)
+	testLabel.BackgroundTransparency = 0.18
+	testLabel.Text = ""
+	testLabel.TextColor3 = Color3.fromRGB(245, 247, 248)
+	testLabel.Font = Enum.Font.RobotoMono
+	testLabel.TextSize = 14
+	testLabel.Visible = false
+	testLabel.Parent = group
+	styleMeter(testLabel)
+
+	return {gui = gui, altitude = altitudeLabel, speed = speedLabel, test = testLabel}
 end
 
 function AltitudeUI.setAltitude(view, altitude)
@@ -69,6 +84,16 @@ end
 
 function AltitudeUI.setSpeed(view, speed)
 	view.speed.Text = string.format("VEL %03d", math.max(0, math.floor(speed + 0.5)))
+end
+
+function AltitudeUI.setFallTest(view, prediction)
+	if not prediction then
+		view.test.Visible = false
+		return
+	end
+	view.test.Visible = true
+	view.test.Text = prediction.survives and "VOAR AGORA: SOBREVIVE" or "VOAR AGORA: MORRE"
+	view.test.TextColor3 = prediction.survives and Color3.fromRGB(75, 235, 125) or Color3.fromRGB(255, 85, 85)
 end
 
 return AltitudeUI
