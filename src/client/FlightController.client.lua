@@ -17,6 +17,8 @@ local COLLISION_PADDING = 0.2
 local BODY_BOX_SIZE = Vector3.new(4.2, 5.6, 2.4)
 local BODY_HALF_HEIGHT = BODY_BOX_SIZE.Y * 0.5
 local CONTACT_PROBE = 0.55
+local SAFE_POSITION_INTERVAL = 0.08
+local OVERLAP_SHRINK = Vector3.new(0.35, 0.35, 0.35)
 local FLIGHT_FOV = 78
 local MAX_BODY_PITCH = math.rad(28)
 local MAX_BODY_ROLL = math.rad(18)
@@ -28,6 +30,7 @@ local visualRoll = 0
 local cameraRoll = 0
 local preservedMomentum = Vector3.zero
 local lastSafeCFrame
+local safePositionElapsed = 0
 
 local function stopFlight(preserveMomentum)
 	local character = player.Character
@@ -59,6 +62,38 @@ local function cameraVertical(lookY)
 	return math.sign(lookY) * math.clamp(normalized, 0, 1)
 end
 
+local function collisionFrameFor(root)
+	return CFrame.new(root.Position) * CFrame.Angles(0, math.rad(root.Orientation.Y), 0)
+end
+
+local function isFlightSpaceClear(character, root)
+	local params = OverlapParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	params.FilterDescendantsInstances = {character}
+	local size = BODY_BOX_SIZE - OVERLAP_SHRINK
+	local parts = workspace:GetPartBoundsInBox(collisionFrameFor(root), size, params)
+	for _, part in parts do
+		if part.CanCollide then
+			return false
+		end
+	end
+	return true
+end
+
+local function recoverFromClipping(character, root)
+	if isFlightSpaceClear(character, root) then
+		return false
+	end
+	if lastSafeCFrame then
+		root.CFrame = lastSafeCFrame
+		root.AssemblyLinearVelocity = Vector3.zero
+		root.AssemblyAngularVelocity = Vector3.zero
+		if velocity then velocity.VectorVelocity = Vector3.zero end
+		return true
+	end
+	return false
+end
+
 local function safeFlightVelocity(character, root, desiredVelocity, dt)
 	if desiredVelocity.Magnitude <= 0.01 then return Vector3.zero end
 
@@ -73,7 +108,7 @@ local function safeFlightVelocity(character, root, desiredVelocity, dt)
 
 	-- Keep the collision volume upright. The character may visually bank/pitch,
 	-- but the safety hull must continue covering head, torso, arms and legs.
-	local collisionFrame = CFrame.new(root.Position) * CFrame.Angles(0, math.rad(root.Orientation.Y), 0)
+	local collisionFrame = collisionFrameFor(root)
 	local cast = workspace:Blockcast(collisionFrame, BODY_BOX_SIZE, direction * distance, params)
 	if cast then
 		local normal = cast.Normal
@@ -129,6 +164,7 @@ local function startFlight()
 
 	flying = true
 	lastSafeCFrame = root.CFrame
+	safePositionElapsed = 0
 	attachment = Instance.new("Attachment")
 	attachment.Name = "FlightAttachment"
 	attachment.Parent = root
@@ -160,6 +196,10 @@ local function startFlight()
 		local camera = workspace.CurrentCamera
 		if not camera then return end
 
+		if recoverFromClipping(character, root) then
+			return
+		end
+
 		local move = humanoid.MoveDirection
 		local horizontalMagnitude = math.min(Vector3.new(move.X, 0, move.Z).Magnitude, 1)
 		local vertical = cameraVertical(camera.CFrame.LookVector.Y) * horizontalMagnitude
@@ -180,8 +220,12 @@ local function startFlight()
 		local commandedVelocity = currentVelocity:Lerp(desiredVelocity, alphaVelocity)
 		local safeVelocity = safeFlightVelocity(character, root, commandedVelocity, dt)
 		velocity.VectorVelocity = safeVelocity
-		if safeVelocity.Magnitude > 0.01 then
-			lastSafeCFrame = root.CFrame
+		safePositionElapsed += dt
+		if safePositionElapsed >= SAFE_POSITION_INTERVAL then
+			safePositionElapsed = 0
+			if isFlightSpaceClear(character, root) then
+				lastSafeCFrame = root.CFrame
+			end
 		end
 
 		local look = camera.CFrame.LookVector
