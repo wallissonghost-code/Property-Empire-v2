@@ -13,6 +13,8 @@ local velocity
 local orientation
 local SPEED = 42
 local CAMERA_VERTICAL_DEADZONE = 0.18
+local COLLISION_PADDING = 0.2
+local BODY_BOX_SIZE = Vector3.new(4.2, 5.6, 2.4)
 
 local function stopFlight()
 	flying = false
@@ -30,6 +32,25 @@ local function cameraVertical(lookY)
 	end
 	local normalized = (magnitude - CAMERA_VERTICAL_DEADZONE) / (1 - CAMERA_VERTICAL_DEADZONE)
 	return math.sign(lookY) * math.clamp(normalized, 0, 1)
+end
+
+local function safeFlightVelocity(character, root, desiredVelocity, dt)
+	if desiredVelocity.Magnitude <= 0.01 then return Vector3.zero end
+
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	params.FilterDescendantsInstances = {character}
+	params.IgnoreWater = false
+
+	local displacement = desiredVelocity * math.max(dt, 1 / 120)
+	local direction = displacement.Unit
+	local distance = displacement.Magnitude + COLLISION_PADDING
+	local cast = workspace:Blockcast(root.CFrame, BODY_BOX_SIZE, direction * distance, params)
+	if not cast then return desiredVelocity end
+
+	local allowedDistance = math.max(0, cast.Distance - COLLISION_PADDING)
+	local scale = displacement.Magnitude > 0 and math.clamp(allowedDistance / displacement.Magnitude, 0, 1) or 0
+	return desiredVelocity * scale
 end
 
 local function startFlight()
@@ -61,7 +82,7 @@ local function startFlight()
 	humanoid:ChangeState(Enum.HumanoidStateType.Freefall)
 	FlightUI.setActive(view, true)
 
-	connection = RunService.RenderStepped:Connect(function()
+	connection = RunService.RenderStepped:Connect(function(dt)
 		if not flying or not root.Parent or humanoid.Health <= 0 then
 			stopFlight()
 			return
@@ -82,7 +103,8 @@ local function startFlight()
 
 		local direction = Vector3.new(move.X, vertical, move.Z)
 		if direction.Magnitude > 1 then direction = direction.Unit end
-		velocity.VectorVelocity = direction * SPEED
+		local desiredVelocity = direction * SPEED
+		velocity.VectorVelocity = safeFlightVelocity(character, root, desiredVelocity, dt)
 
 		local look = camera.CFrame.LookVector
 		local flatLook = Vector3.new(look.X, 0, look.Z)
