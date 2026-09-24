@@ -1,13 +1,17 @@
 local outputPath = ...
 assert(type(outputPath) == "string" and outputPath ~= "", "missing output path")
 
-local place = game
+local place = Instance.new("DataModel")
 place.Name = "Clean Base"
 
 local workspace = place:GetService("Workspace")
 local lighting = place:GetService("Lighting")
 local players = place:GetService("Players")
+local starterPlayer = place:GetService("StarterPlayer")
+local serverScripts = place:GetService("ServerScriptService")
 players.CharacterAutoLoads = true
+starterPlayer.CharacterWalkSpeed = 16
+starterPlayer.CharacterJumpPower = 50
 
 lighting.Brightness = 2
 lighting.ClockTime = 14
@@ -31,5 +35,5 @@ spawn.Size = Vector3.new(6, 1, 6)
 spawn.Position = Vector3.new(0, 1, 0)
 spawn.Parent = workspace
 
-place:SaveToFile(outputPath)
+fs.write(outputPath, place)
 print("[Clean Base] flat place prepared")
