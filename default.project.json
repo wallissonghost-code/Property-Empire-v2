@@ -64,6 +64,9 @@
       },
       "TestMobs": {
         "$path": "src/server/TestMobs.server.lua"
+      },
+      "SkillService": {
+        "$path": "src/server/SkillService.server.lua"
       }
     },
     "StarterGui": {
