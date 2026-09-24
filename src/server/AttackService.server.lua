@@ -11,33 +11,41 @@ local MELEE_RANGE = 6
 local LASER_RANGE = 55
 local MELEE_DAMAGE = 10
 local LASER_DAMAGE = 10
+local TARGET_CONE_DOT = 0.15
 local lastAttack = {}
 
-local function getTarget(character, range)
+local function findTarget(character, range)
 	local root = character and character:FindFirstChild("HumanoidRootPart")
 	if not root then return nil, nil end
 
 	local bestHumanoid
 	local bestRoot
-	local bestDistance = range + 1
-	for _, model in workspace:GetChildren() do
-		if model ~= character and model:IsA("Model") then
-			local humanoid = model:FindFirstChildOfClass("Humanoid")
-			local targetRoot = model:FindFirstChild("HumanoidRootPart")
-			if humanoid and targetRoot and humanoid.Health > 0 then
+	local bestScore = math.huge
+
+	for _, descendant in workspace:GetDescendants() do
+		if descendant:IsA("Humanoid") and descendant.Health > 0 and descendant.Parent ~= character then
+			local model = descendant.Parent
+			local targetRoot = model and model:FindFirstChild("HumanoidRootPart")
+			if targetRoot and targetRoot:IsA("BasePart") then
 				local offset = targetRoot.Position - root.Position
 				local distance = offset.Magnitude
-				if distance <= range and distance < bestDistance and distance > 0 then
+				if distance > 0 and distance <= range then
 					local facing = root.CFrame.LookVector:Dot(offset.Unit)
-					if facing >= 0.35 then
-						bestHumanoid = humanoid
-						bestRoot = targetRoot
-						bestDistance = distance
+					if facing >= TARGET_CONE_DOT then
+						-- Favor the target closest to the center of the player's view,
+						-- then distance. Works for players and NPC Humanoids alike.
+						local score = (1 - facing) * range + distance * 0.15
+						if score < bestScore then
+							bestScore = score
+							bestHumanoid = descendant
+							bestRoot = targetRoot
+						end
 					end
 				end
 			end
 		end
 	end
+
 	return bestHumanoid, bestRoot
 end
 
@@ -68,6 +76,13 @@ local function showLaser(character, targetRoot)
 	Debris:AddItem(beam, 0.12)
 end
 
+local function damageTarget(target, amount)
+	if not target or target.Health <= 0 then return false end
+	local before = target.Health
+	target:TakeDamage(amount)
+	return target.Health < before
+end
+
 remote.OnServerEvent:Connect(function(player)
 	local now = os.clock()
 	if lastAttack[player] and now - lastAttack[player] < COOLDOWN then return end
@@ -79,14 +94,15 @@ remote.OnServerEvent:Connect(function(player)
 
 	local hasLaser = player:GetAttribute("Skill_LaserEyes") == true
 	local range = hasLaser and LASER_RANGE or MELEE_RANGE
-	local target, targetRoot = getTarget(character, range)
+	local target, targetRoot = findTarget(character, range)
 	if not target then return end
 
 	if hasLaser then
-		showLaser(character, targetRoot)
-		target:TakeDamage(LASER_DAMAGE)
+		if damageTarget(target, LASER_DAMAGE) then
+			showLaser(character, targetRoot)
+		end
 	else
-		target:TakeDamage(MELEE_DAMAGE)
+		damageTarget(target, MELEE_DAMAGE)
 	end
 end)
 
