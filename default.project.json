@@ -67,6 +67,9 @@
       },
       "SkillService": {
         "$path": "src/server/SkillService.server.lua"
+      },
+      "CollisionService": {
+        "$path": "src/server/CollisionService.server.lua"
       }
     },
     "StarterGui": {
