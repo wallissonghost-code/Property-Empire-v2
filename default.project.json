@@ -58,6 +58,9 @@
       },
       "AttackService": {
         "$path": "src/server/AttackService.server.lua"
+      },
+      "FallDamageService": {
+        "$path": "src/server/FallDamageService.server.lua"
       }
     },
     "StarterGui": {
