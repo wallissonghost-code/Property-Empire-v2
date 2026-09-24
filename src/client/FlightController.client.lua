@@ -15,6 +15,7 @@ local SPEED = 42
 local CAMERA_VERTICAL_DEADZONE = 0.18
 local COLLISION_PADDING = 0.2
 local BODY_BOX_SIZE = Vector3.new(4.2, 5.6, 2.4)
+local BODY_HALF_HEIGHT = BODY_BOX_SIZE.Y * 0.5
 local FLIGHT_FOV = 78
 local MAX_BODY_PITCH = math.rad(28)
 local MAX_BODY_ROLL = math.rad(18)
@@ -59,12 +60,30 @@ local function safeFlightVelocity(character, root, desiredVelocity, dt)
 	local displacement = desiredVelocity * math.max(dt, 1 / 120)
 	local direction = displacement.Unit
 	local distance = displacement.Magnitude + COLLISION_PADDING
-	local cast = workspace:Blockcast(root.CFrame, BODY_BOX_SIZE, direction * distance, params)
-	if not cast then return desiredVelocity end
 
-	local allowedDistance = math.max(0, cast.Distance - COLLISION_PADDING)
-	local scale = displacement.Magnitude > 0 and math.clamp(allowedDistance / displacement.Magnitude, 0, 1) or 0
-	return desiredVelocity * scale
+	-- Keep the collision volume upright. The character may visually bank/pitch,
+	-- but the safety hull must continue covering head, torso, arms and legs.
+	local collisionFrame = CFrame.new(root.Position) * CFrame.Angles(0, math.rad(root.Orientation.Y), 0)
+	local cast = workspace:Blockcast(collisionFrame, BODY_BOX_SIZE, direction * distance, params)
+	if cast then
+		local allowedDistance = math.max(0, cast.Distance - COLLISION_PADDING)
+		local scale = displacement.Magnitude > 0 and math.clamp(allowedDistance / displacement.Magnitude, 0, 1) or 0
+		return desiredVelocity * scale
+	end
+
+	-- Extra vertical probes protect thin floors/ceilings when the rig is already
+	-- very close to a surface and a sweep starts near contact.
+	if desiredVelocity.Y < 0 then
+		local origin = root.Position - Vector3.new(0, BODY_HALF_HEIGHT - 0.25, 0)
+		local hit = workspace:Raycast(origin, Vector3.new(0, -(math.abs(displacement.Y) + COLLISION_PADDING + 0.35), 0), params)
+		if hit then return Vector3.new(desiredVelocity.X, 0, desiredVelocity.Z) end
+	elseif desiredVelocity.Y > 0 then
+		local origin = root.Position + Vector3.new(0, BODY_HALF_HEIGHT - 0.25, 0)
+		local hit = workspace:Raycast(origin, Vector3.new(0, math.abs(displacement.Y) + COLLISION_PADDING + 0.35, 0), params)
+		if hit then return Vector3.new(desiredVelocity.X, 0, desiredVelocity.Z) end
+	end
+
+	return desiredVelocity
 end
 
 local function startFlight()
