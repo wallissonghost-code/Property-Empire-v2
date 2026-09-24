@@ -6,6 +6,7 @@ on:
     paths:
       - "default.project.json"
       - "src/**"
+      - "scripts/qa/**"
       - ".github/workflows/publish-roblox.yml"
   workflow_dispatch:
 
@@ -34,6 +35,11 @@ jobs:
           test -f default.project.json
           grep -q '"DataModel"' default.project.json
           grep -q '"SpawnLocation"' default.project.json
+
+      - name: Robloxjogo pre-publish QA
+        run: |
+          set -euo pipefail
+          python3 scripts/qa/validate.py
 
       - name: Install Rojo 7.6.1
         run: |
