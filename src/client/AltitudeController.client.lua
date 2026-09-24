@@ -22,6 +22,7 @@ RunService.RenderStepped:Connect(function(dt)
 	local root = character and character:FindFirstChild("HumanoidRootPart")
 	if not root then
 		AltitudeUI.setAltitude(view, 0)
+		AltitudeUI.setSpeed(view, 0)
 		return
 	end
 
@@ -29,4 +30,5 @@ RunService.RenderStepped:Connect(function(dt)
 	local result = workspace:Raycast(root.Position, Vector3.new(0, -4096, 0), rayParams)
 	local altitude = result and math.max(0, root.Position.Y - result.Position.Y - FEET_OFFSET) or math.max(0, root.Position.Y - FEET_OFFSET)
 	AltitudeUI.setAltitude(view, altitude)
+	AltitudeUI.setSpeed(view, root.AssemblyLinearVelocity.Magnitude)
 end)
