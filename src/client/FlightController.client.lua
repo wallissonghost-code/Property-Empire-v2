@@ -15,9 +15,23 @@ local SPEED = 42
 local CAMERA_VERTICAL_DEADZONE = 0.18
 local COLLISION_PADDING = 0.2
 local BODY_BOX_SIZE = Vector3.new(4.2, 5.6, 2.4)
+local FLIGHT_FOV = 78
+local MAX_BODY_PITCH = math.rad(28)
+local MAX_BODY_ROLL = math.rad(18)
+local MAX_CAMERA_ROLL = math.rad(4)
+local VISUAL_RESPONSE = 7
+local defaultFov = 70
+local visualPitch = 0
+local visualRoll = 0
+local cameraRoll = 0
 
 local function stopFlight()
 	flying = false
+	visualPitch = 0
+	visualRoll = 0
+	cameraRoll = 0
+	local camera = workspace.CurrentCamera
+	if camera then camera.FieldOfView = defaultFov end
 	if connection then connection:Disconnect() connection = nil end
 	if velocity then velocity:Destroy() velocity = nil end
 	if orientation then orientation:Destroy() orientation = nil end
@@ -58,6 +72,9 @@ local function startFlight()
 	local root = character and character:FindFirstChild("HumanoidRootPart")
 	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 	if not root or not humanoid or humanoid.Health <= 0 then return end
+
+	local camera = workspace.CurrentCamera
+	if camera then defaultFov = camera.FieldOfView end
 
 	flying = true
 	attachment = Instance.new("Attachment")
@@ -109,7 +126,16 @@ local function startFlight()
 		local look = camera.CFrame.LookVector
 		local flatLook = Vector3.new(look.X, 0, look.Z)
 		if flatLook.Magnitude > 0.01 then
-			orientation.CFrame = CFrame.lookAt(Vector3.zero, flatLook.Unit)
+			local cameraRight = camera.CFrame.RightVector
+			local sideInput = move:Dot(Vector3.new(cameraRight.X, 0, cameraRight.Z).Unit)
+			local forwardInput = move:Dot(flatLook.Unit)
+			local alpha = 1 - math.exp(-VISUAL_RESPONSE * dt)
+			visualPitch += ((-MAX_BODY_PITCH * math.max(forwardInput, 0)) - visualPitch) * alpha
+			visualRoll += ((-MAX_BODY_ROLL * sideInput) - visualRoll) * alpha
+			cameraRoll += ((-MAX_CAMERA_ROLL * sideInput) - cameraRoll) * alpha
+			orientation.CFrame = CFrame.lookAt(Vector3.zero, flatLook.Unit) * CFrame.Angles(visualPitch, 0, visualRoll)
+			camera.FieldOfView += ((FLIGHT_FOV - camera.FieldOfView) * alpha)
+			camera.CFrame = camera.CFrame * CFrame.Angles(0, 0, cameraRoll)
 		end
 	end)
 end
