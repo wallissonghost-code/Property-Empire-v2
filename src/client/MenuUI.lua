@@ -14,13 +14,6 @@ function MenuUI.create(playerGui)
 	gui.Enabled = false
 	gui.Parent = playerGui
 
-	local overlay = Instance.new("Frame")
-	overlay.Size = UDim2.fromScale(1, 1)
-	overlay.BackgroundColor3 = Color3.fromRGB(5, 7, 9)
-	overlay.BackgroundTransparency = 0.42
-	overlay.BorderSizePixel = 0
-	overlay.Parent = gui
-
 	local panel = Instance.new("Frame")
 	panel.Name = "Panel"
 	panel.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -28,7 +21,7 @@ function MenuUI.create(playerGui)
 	panel.Size = UDim2.new(0.78, 0, 0.58, 0)
 	panel.BackgroundColor3 = Color3.fromRGB(14, 17, 20)
 	panel.BorderSizePixel = 0
-	panel.Parent = overlay
+	panel.Parent = gui
 	corner(panel, 20)
 
 	local aspect = Instance.new("UIAspectRatioConstraint")
