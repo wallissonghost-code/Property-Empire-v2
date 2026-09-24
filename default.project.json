@@ -61,6 +61,9 @@
       },
       "FallDamageService": {
         "$path": "src/server/FallDamageService.server.lua"
+      },
+      "TestMobs": {
+        "$path": "src/server/TestMobs.server.lua"
       }
     },
     "StarterGui": {
