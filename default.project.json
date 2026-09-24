@@ -1,0 +1,27 @@
+{
+  "name": "CidadeProspera",
+  "tree": {
+    "$className": "DataModel",
+    "Workspace": {
+      "$className": "Workspace",
+      "Baseplate": {
+        "$className": "Part",
+        "$properties": {
+          "Anchored": true,
+          "Size": [512, 1, 512],
+          "Position": [0, 0, 0],
+          "Color": [0.388235, 0.372549, 0.384314]
+        }
+      },
+      "SpawnLocation": {
+        "$className": "SpawnLocation",
+        "$properties": {
+          "Anchored": true,
+          "Neutral": true,
+          "Size": [6, 1, 6],
+          "Position": [0, 1, 0]
+        }
+      }
+    }
+  }
+}
