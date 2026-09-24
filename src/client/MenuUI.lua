@@ -42,12 +42,7 @@ function MenuUI.create(playerGui)
 	limits.MaxSize = Vector2.new(620, 400)
 	limits.Parent = panel
 
-	local stroke = Instance.new("UIStroke")
-	stroke.Color = Color3.fromRGB(67, 74, 79)
-	stroke.Transparency = 0.45
-	stroke.Parent = panel
-
-	local gradient = Instance.new("UIGradient")
+		local gradient = Instance.new("UIGradient")
 	gradient.Rotation = 90
 	gradient.Color = ColorSequence.new(Color3.fromRGB(20, 24, 27), Color3.fromRGB(12, 15, 18))
 	gradient.Parent = panel
