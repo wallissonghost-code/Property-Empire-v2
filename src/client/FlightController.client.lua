@@ -25,8 +25,12 @@ local defaultFov = 70
 local visualPitch = 0
 local visualRoll = 0
 local cameraRoll = 0
+local preservedMomentum = Vector3.zero
 
 local function stopFlight()
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	if root then preservedMomentum = root.AssemblyLinearVelocity end
 	flying = false
 	visualPitch = 0
 	visualRoll = 0
@@ -95,6 +99,12 @@ local function startFlight()
 	local camera = workspace.CurrentCamera
 	if camera then defaultFov = camera.FieldOfView end
 
+	local entryVelocity = root.AssemblyLinearVelocity
+	if preservedMomentum.Magnitude > entryVelocity.Magnitude then
+		entryVelocity = preservedMomentum
+	end
+	preservedMomentum = Vector3.zero
+
 	flying = true
 	attachment = Instance.new("Attachment")
 	attachment.Name = "FlightAttachment"
@@ -104,7 +114,7 @@ local function startFlight()
 	velocity.Name = "FlightVelocity"
 	velocity.Attachment0 = attachment
 	velocity.MaxForce = math.huge
-	velocity.VectorVelocity = Vector3.zero
+	velocity.VectorVelocity = entryVelocity
 	velocity.Parent = root
 
 	orientation = Instance.new("AlignOrientation")
@@ -140,7 +150,12 @@ local function startFlight()
 		local direction = Vector3.new(move.X, vertical, move.Z)
 		if direction.Magnitude > 1 then direction = direction.Unit end
 		local desiredVelocity = direction * SPEED
-		velocity.VectorVelocity = safeFlightVelocity(character, root, desiredVelocity, dt)
+		local currentVelocity = root.AssemblyLinearVelocity
+		local controlStrength = math.clamp(direction.Magnitude, 0, 1)
+		local recoveryRate = 2.8 + (5.2 * controlStrength)
+		local alphaVelocity = 1 - math.exp(-recoveryRate * dt)
+		local commandedVelocity = currentVelocity:Lerp(desiredVelocity, alphaVelocity)
+		velocity.VectorVelocity = safeFlightVelocity(character, root, commandedVelocity, dt)
 
 		local look = camera.CFrame.LookVector
 		local flatLook = Vector3.new(look.X, 0, look.Z)
