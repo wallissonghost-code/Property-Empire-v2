@@ -11,6 +11,7 @@ local function hide()
 end
 
 local function show()
+	if view.gui.Enabled then return end
 	view.gui.Enabled = true
 	view.panel.Position = UDim2.fromScale(0.5, 0.525)
 	view.panel.BackgroundTransparency = 0.08
@@ -21,4 +22,11 @@ local function show()
 end
 
 view.close.Activated:Connect(hide)
-remote.OnClientEvent:Connect(function(isOpen)\n\tif isOpen then show() else hide() end\nend)
+
+remote.OnClientEvent:Connect(function(isOpen)
+	if isOpen then
+		show()
+	else
+		hide()
+	end
+end)
