@@ -99,6 +99,60 @@ function MenuUI.create(playerGui)
 	content.Size = UDim2.new(1, -44, 1, -116)
 	content.Parent = panel
 
+	local skillTitle = Instance.new("TextLabel")
+	skillTitle.BackgroundTransparency = 1
+	skillTitle.Size = UDim2.new(1, 0, 0, 30)
+	skillTitle.Font = Enum.Font.GothamBold
+	skillTitle.Text = "Skill"
+	skillTitle.TextColor3 = Color3.fromRGB(247, 249, 250)
+	skillTitle.TextSize = 20
+	skillTitle.TextXAlignment = Enum.TextXAlignment.Left
+	skillTitle.Parent = content
+
+	local skillCard = Instance.new("Frame")
+	skillCard.Position = UDim2.fromOffset(0, 40)
+	skillCard.Size = UDim2.new(1, 0, 0, 82)
+	skillCard.BackgroundColor3 = Color3.fromRGB(24, 29, 33)
+	skillCard.BorderSizePixel = 0
+	skillCard.Parent = content
+	corner(skillCard, 12)
+
+	local skillName = Instance.new("TextLabel")
+	skillName.BackgroundTransparency = 1
+	skillName.Position = UDim2.fromOffset(14, 10)
+	skillName.Size = UDim2.new(1, -150, 0, 26)
+	skillName.Font = Enum.Font.GothamBold
+	skillName.Text = "Olho de Laser"
+	skillName.TextColor3 = Color3.fromRGB(245, 247, 248)
+	skillName.TextSize = 16
+	skillName.TextXAlignment = Enum.TextXAlignment.Left
+	skillName.Parent = skillCard
+
+	local price = Instance.new("TextLabel")
+	price.BackgroundTransparency = 1
+	price.Position = UDim2.fromOffset(14, 40)
+	price.Size = UDim2.new(1, -150, 0, 22)
+	price.Font = Enum.Font.GothamMedium
+	price.Text = "Valor: R$0"
+	price.TextColor3 = Color3.fromRGB(151, 160, 166)
+	price.TextSize = 14
+	price.TextXAlignment = Enum.TextXAlignment.Left
+	price.Parent = skillCard
+
+	local buy = Instance.new("TextButton")
+	buy.Name = "BuyLaserEyes"
+	buy.AnchorPoint = Vector2.new(1, 0.5)
+	buy.Position = UDim2.new(1, -12, 0.5, 0)
+	buy.Size = UDim2.fromOffset(112, 42)
+	buy.BackgroundColor3 = Color3.fromRGB(45, 210, 105)
+	buy.AutoButtonColor = false
+	buy.Text = "COMPRAR"
+	buy.TextColor3 = Color3.fromRGB(8, 20, 13)
+	buy.Font = Enum.Font.GothamBold
+	buy.TextSize = 13
+	buy.Parent = skillCard
+	corner(buy, 10)
+
 	local empty = Instance.new("TextLabel")
 	empty.BackgroundTransparency = 1
 	empty.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -108,13 +162,14 @@ function MenuUI.create(playerGui)
 	empty.Text = "Selecione uma opção"
 	empty.TextColor3 = Color3.fromRGB(121, 130, 136)
 	empty.TextScaled = true
+	empty.Visible = false
 	empty.Parent = content
 	local emptyLimit = Instance.new("UITextSizeConstraint")
 	emptyLimit.MinTextSize = 12
 	emptyLimit.MaxTextSize = 15
 	emptyLimit.Parent = empty
 
-	return {gui = gui, panel = panel, close = close, content = content}
+	return {gui = gui, panel = panel, close = close, content = content, buyLaserEyes = buy}
 end
 
 return MenuUI
