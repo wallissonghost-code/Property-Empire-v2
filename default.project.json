@@ -55,6 +55,9 @@
       "$className": "ServerScriptService",
       "MenuTrigger": {
         "$path": "src/server/MenuTrigger.server.lua"
+      },
+      "AttackService": {
+        "$path": "src/server/AttackService.server.lua"
       }
     },
     "StarterGui": {
