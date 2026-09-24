@@ -1,4 +1,4 @@
-checked_at_utc=2026-09-23T23:27:13Z
+checked_at_utc=2026-09-24T17:25:54Z
 universe_id=10765616545
 place_id=80220344568601
 universe_http=200
@@ -6,6 +6,6 @@ place_http=200
 public_game_http=200
 playability_http=200
 universe_response={"path":"universes/10765616545","createTime":"2026-09-07T22:36:59.523Z","updateTime":"2026-09-07T22:37:06.903Z","displayName":"CIDADE PROSPERA","description":"","user":"users/9538436641","visibility":"PRIVATE","voiceChatEnabled":true,"ageRating":"AGE_RATING_13_PLUS","desktopEnabled":true,"mobileEnabled":true,"tabletEnabled":true,"consoleEnabled":false,"vrEnabled":true,"rootPlace":"universes/10765616545/places/80220344568601","templateRootPlace":""}
-place_response={"path":"universes/10765616545/places/80220344568601","createTime":"2026-09-07T22:36:59.311Z","updateTime":"2026-09-12T18:30:54.812Z","displayName":"CIDADE PROSPERA","description":"","serverSize":50,"root":true,"universeRuntimeCreation":false,"templatePlace":""}
+place_response={"path":"universes/10765616545/places/80220344568601","createTime":"2026-09-07T22:36:59.311Z","updateTime":"2026-09-23T23:27:37.093950600Z","displayName":"CIDADE PROSPERA","description":"","serverSize":50,"root":true,"universeRuntimeCreation":false,"templatePlace":""}
 public_game_response={"data":[{"id":0,"rootPlaceId":0,"name":"[TITLE UNAVAILABLE]","description":"[DESCRIPTION UNAVAILABLE]","sourceName":null,"sourceDescription":null,"creator":{"id":0,"name":"[UNKNOWN]","type":"User","isRNVAccount":false,"hasVerifiedBadge":false},"price":null,"allowedGearGenres":[],"allowedGearCategories":[],"isGenreEnforced":false,"copyingAllowed":false,"playing":0,"visits":0,"maxPlayers":0,"created":"0001-01-01T05:51:00Z","updated":"0001-01-01T05:51:00Z","studioAccessToApisAllowed":false,"createVipServersAllowed":false,"universeAvatarType":null,"genre":null,"isAllGenre":false,"isFavoritedByUser":false,"favoritedCount":0,"isContentRestricted":true}]}
 playability_response=[{"playabilityStatus":"ContextualPlayabilityUnrated","isPlayable":false,"universeId":10765616545,"unplayableDisplayText":null,"playableUxTreatment":null,"upsellUxTreatment":null,"privatePlaytestInfo":null}]
