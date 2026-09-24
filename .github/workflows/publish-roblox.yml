@@ -3,134 +3,80 @@ name: Publish CIDADE PROSPERA to Roblox
 on:
   push:
     branches: [main]
+    paths:
+      - "default.project.json"
+      - ".github/workflows/publish-roblox.yml"
   workflow_dispatch:
 
+concurrency:
+  group: cidade-prospera-place-main
+  cancel-in-progress: false
+
 permissions:
-  contents: write
+  contents: read
+
+env:
+  ROBLOX_UNIVERSE_ID: "10765616545"
+  ROBLOX_PLACE_ID: "80220344568601"
 
 jobs:
-  publish:
-    if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && contains(github.event.head_commit.message, '[DEPLOY_ROBLOX]')) }}
+  build-and-publish:
     runs-on: ubuntu-latest
-    env:
-      UNIVERSE_ID: ""
-      PLACE_ID: "80220344568601"
-      ROBLOX_API_KEY: ${{ secrets.MUSEU_EMPIRE_API_KEY }}
-
+    timeout-minutes: 20
     steps:
-      - name: Checkout current project
+      - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-          submodules: false
 
-      - name: Verify inputs
-        shell: bash
+      - name: Verify recovery project
+        run: |
+          set -euo pipefail
+          test -f default.project.json
+          grep -q '"DataModel"' default.project.json
+          grep -q '"SpawnLocation"' default.project.json
+
+      - name: Install Rojo 7.6.1
+        run: |
+          set -euo pipefail
+          ZIP=/tmp/rojo.zip
+          DIR=/tmp/rojo
+          curl --fail --silent --show-error --location "https://github.com/rojo-rbx/rojo/releases/download/v7.6.1/rojo-7.6.1-linux-x86_64.zip" --output "$ZIP"
+          echo "a9542a713036897fdbd0173e7a105ea409658333133c949025fcb6f1a7ca909d  $ZIP" | sha256sum --check -
+          mkdir -p "$DIR"
+          unzip -q "$ZIP" -d "$DIR"
+          sudo install -m 0755 "$DIR/rojo" /usr/local/bin/rojo
+          rojo --version
+
+      - name: Build minimal playable place
+        run: |
+          set -euo pipefail
+          mkdir -p build
+          rojo build default.project.json -o build/game.rbxl
+          test -s build/game.rbxl
+          ls -lh build/game.rbxl
+
+      - name: Publish CIDADE PROSPERA
+        env:
+          ROBLOX_API_KEY: ${{ secrets.MUSEU_EMPIRE_API_KEY }}
         run: |
           set -euo pipefail
           test -n "$ROBLOX_API_KEY"
-          test -n "$PLACE_ID"
-          test -f scripts/current-place.rbxmk.lua
-          test -f scripts/prepare-place.sh
+          URL="https://apis.roblox.com/universes/v1/${ROBLOX_UNIVERSE_ID}/places/${ROBLOX_PLACE_ID}/versions?versionType=Published"
+          RESPONSE=$(mktemp)
+          trap 'rm -f "$RESPONSE"' EXIT
+          for ATTEMPT in 1 2 3 4; do
+            HTTP_CODE=$(curl --silent --show-error --location --output "$RESPONSE" --write-out "%{http_code}" --request POST "$URL" --header "x-api-key: ${ROBLOX_API_KEY}" --header "Content-Type: application/octet-stream" --data-binary @build/game.rbxl)
+            BODY=$(cat "$RESPONSE")
+            echo "Roblox publish attempt ${ATTEMPT}: HTTP ${HTTP_CODE}"
+            echo "Roblox response: ${BODY}"
+            if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then exit 0; fi
+            if [ "$HTTP_CODE" != "409" ] || [ "$ATTEMPT" -eq 4 ]; then exit 1; fi
+            sleep 180
+          done
 
-      - name: Resolve CIDADE PROSPERA universe
-        shell: bash
-        run: |
-          set -euo pipefail
-          curl -fsS "https://apis.roblox.com/universes/v1/places/${PLACE_ID}/universe" -o /tmp/place-universe.json
-          RESOLVED_UNIVERSE_ID=$(grep -oE '"universeId":[0-9]+' /tmp/place-universe.json | grep -oE "[0-9]+")
-          test -n "$RESOLVED_UNIVERSE_ID"
-          echo "UNIVERSE_ID=$RESOLVED_UNIVERSE_ID" >> "$GITHUB_ENV"
-          echo "Resolved target universe from Place ID"
-
-      - name: Check Roblox target
-        shell: bash
-        run: |
-          set -u
-          mkdir -p .deploy
-          UNIVERSE_HTTP=$(curl -sS -o /tmp/universe.json -w "%{http_code}" \
-            -H "x-api-key: $ROBLOX_API_KEY" \
-            "https://apis.roblox.com/cloud/v2/universes/${UNIVERSE_ID}" || true)
-          PLACE_HTTP=$(curl -sS -o /tmp/place.json -w "%{http_code}" \
-            -H "x-api-key: $ROBLOX_API_KEY" \
-            "https://apis.roblox.com/cloud/v2/universes/${UNIVERSE_ID}/places/${PLACE_ID}" || true)
-          PUBLIC_HTTP=$(curl -sS -o /tmp/public-game.json -w "%{http_code}" \
-            "https://games.roblox.com/v1/games?universeIds=${UNIVERSE_ID}" || true)
-          PLAYABILITY_HTTP=$(curl -sS -o /tmp/playability.json -w "%{http_code}" \
-            "https://games.roblox.com/v1/games/multiget-playability-status?universeIds=${UNIVERSE_ID}" || true)
-          cat > .deploy/roblox-diagnostics.txt <<EOF
-          checked_at_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-          universe_id=${UNIVERSE_ID}
-          place_id=${PLACE_ID}
-          universe_http=${UNIVERSE_HTTP}
-          place_http=${PLACE_HTTP}
-          public_game_http=${PUBLIC_HTTP}
-          playability_http=${PLAYABILITY_HTTP}
-          universe_response=$(tr '\n' ' ' < /tmp/universe.json 2>/dev/null | head -c 1200)
-          place_response=$(tr '\n' ' ' < /tmp/place.json 2>/dev/null | head -c 1200)
-          public_game_response=$(tr '\n' ' ' < /tmp/public-game.json 2>/dev/null | head -c 2000)
-          playability_response=$(tr '\n' ' ' < /tmp/playability.json 2>/dev/null | head -c 1200)
-          EOF
-          cat .deploy/roblox-diagnostics.txt
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
+      - name: Upload recovery artifact
+        uses: actions/upload-artifact@v4
         with:
-          go-version: '1.24.x'
-          cache: false
-
-      - name: Install rbxmk
-        shell: bash
-        run: |
-          set -euo pipefail
-          go install github.com/anaminus/rbxmk/rbxmk@v0.9.1
-          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
-
-      - name: Prepare clean place
-        shell: bash
-        run: |
-          chmod +x scripts/prepare-place.sh
-          ./scripts/prepare-place.sh
-          test -s Cidade-de-Investidores.rbxl
-
-      - name: Publish CIDADE PROSPERA
-        shell: bash
-        run: |
-          set -euo pipefail
-          HTTP_CODE=$(curl -sS -o publish-response.txt -w "%{http_code}" \
-            -X POST \
-            -H "x-api-key: $ROBLOX_API_KEY" \
-            -H "Content-Type: application/octet-stream" \
-            --data-binary @Cidade-de-Investidores.rbxl \
-            "https://apis.roblox.com/universes/v1/${UNIVERSE_ID}/places/${PLACE_ID}/versions?versionType=Published")
-          echo "publish_http=$HTTP_CODE"
-          cat publish-response.txt || true
-          if [ "$HTTP_CODE" -lt 200 ] || [ "$HTTP_CODE" -ge 300 ]; then
-            exit 1
-          fi
-
-      - name: Record successful publish
-        shell: bash
-        run: |
-          mkdir -p .deploy
-          cat > .deploy/last-publish.txt <<EOF
-          project=CIDADE PROSPERA
-          place_id=${PLACE_ID}
-          universe_id=${UNIVERSE_ID}
-          source_commit=${GITHUB_SHA}
-          build=clean-from-scratch
-          artifact=Cidade-de-Investidores.rbxl
-          transformer=rbxmk-v0.9.1
-          published_at_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-          status=accepted_by_roblox_open_cloud
-          EOF
-
-      - name: Commit publish records
-        shell: bash
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add .deploy/last-publish.txt .deploy/roblox-diagnostics.txt
-          if git diff --cached --quiet; then exit 0; fi
-          git commit -m "chore: record CIDADE PROSPERA publish"
-          git push
+          name: cidade-prospera-recovery-place
+          path: build/game.rbxl
+          if-no-files-found: error
+          retention-days: 7
