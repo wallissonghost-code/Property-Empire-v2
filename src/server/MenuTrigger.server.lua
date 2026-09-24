@@ -1,8 +1,9 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 
 local remote = Instance.new("RemoteEvent")
-remote.Name = "OpenMainMenu"
+remote.Name = "MainMenuState"
 remote.Parent = ReplicatedStorage
 
 local trigger = Instance.new("Part")
@@ -16,25 +17,34 @@ trigger.TopSurface = Enum.SurfaceType.Smooth
 trigger.BottomSurface = Enum.SurfaceType.Smooth
 trigger.Parent = workspace
 
-local debounce = {}
+local active = {}
+local halfX = trigger.Size.X * 0.5
+local halfZ = trigger.Size.Z * 0.5
 
-trigger.Touched:Connect(function(hit)
-	local character = hit:FindFirstAncestorOfClass("Model")
-	if not character then return end
+local function isStandingOnPlatform(character)
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	if not root or not humanoid or humanoid.Health <= 0 then
+		return false
+	end
 
-	local humanoid = character:FindFirstChildOfClass("Humanoid")
-	if not humanoid then return end
+	local localPosition = trigger.CFrame:PointToObjectSpace(root.Position)
+	local insideX = math.abs(localPosition.X) <= halfX
+	local insideZ = math.abs(localPosition.Z) <= halfZ
+	local above = localPosition.Y >= 0 and localPosition.Y <= 6
+	return insideX and insideZ and above
+end
 
-	local player = Players:GetPlayerFromCharacter(character)
-	if not player or debounce[player] then return end
-
-	debounce[player] = true
-	remote:FireClient(player)
-	task.delay(1, function()
-		debounce[player] = nil
-	end)
+RunService.Heartbeat:Connect(function()
+	for _, player in Players:GetPlayers() do
+		local standing = isStandingOnPlatform(player.Character)
+		if active[player] ~= standing then
+			active[player] = standing
+			remote:FireClient(player, standing)
+		end
+	end
 end)
 
 Players.PlayerRemoving:Connect(function(player)
-	debounce[player] = nil
+	active[player] = nil
 end)
