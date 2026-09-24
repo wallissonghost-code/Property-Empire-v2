@@ -16,6 +16,7 @@ local CAMERA_VERTICAL_DEADZONE = 0.18
 local COLLISION_PADDING = 0.2
 local BODY_BOX_SIZE = Vector3.new(4.2, 5.6, 2.4)
 local BODY_HALF_HEIGHT = BODY_BOX_SIZE.Y * 0.5
+local CONTACT_PROBE = 0.55
 local FLIGHT_FOV = 78
 local MAX_BODY_PITCH = math.rad(28)
 local MAX_BODY_ROLL = math.rad(18)
@@ -26,11 +27,16 @@ local visualPitch = 0
 local visualRoll = 0
 local cameraRoll = 0
 local preservedMomentum = Vector3.zero
+local lastSafeCFrame
 
-local function stopFlight()
+local function stopFlight(preserveMomentum)
 	local character = player.Character
 	local root = character and character:FindFirstChild("HumanoidRootPart")
-	if root then preservedMomentum = root.AssemblyLinearVelocity end
+	if root and preserveMomentum ~= false then
+		preservedMomentum = root.AssemblyLinearVelocity
+	elseif preserveMomentum == false then
+		preservedMomentum = Vector3.zero
+	end
 	flying = false
 	visualPitch = 0
 	visualRoll = 0
@@ -70,9 +76,25 @@ local function safeFlightVelocity(character, root, desiredVelocity, dt)
 	local collisionFrame = CFrame.new(root.Position) * CFrame.Angles(0, math.rad(root.Orientation.Y), 0)
 	local cast = workspace:Blockcast(collisionFrame, BODY_BOX_SIZE, direction * distance, params)
 	if cast then
-		local allowedDistance = math.max(0, cast.Distance - COLLISION_PADDING)
-		local scale = displacement.Magnitude > 0 and math.clamp(allowedDistance / displacement.Magnitude, 0, 1) or 0
-		return desiredVelocity * scale
+		local normal = cast.Normal
+		local intoSurface = desiredVelocity:Dot(normal)
+		if intoSurface < 0 then
+			-- Remove only the velocity pushing into the surface. Tangential movement
+			-- remains available so walls do not pin or rotate the character.
+			return desiredVelocity - normal * intoSurface
+		end
+		return desiredVelocity
+	end
+
+	-- A short upright overlap/proximity sweep catches side contacts where the
+	-- physical rig is already touching a wall before the next movement sweep.
+	local contactCast = workspace:Blockcast(collisionFrame, BODY_BOX_SIZE, direction * CONTACT_PROBE, params)
+	if contactCast then
+		local normal = contactCast.Normal
+		local intoSurface = desiredVelocity:Dot(normal)
+		if intoSurface < 0 then
+			return desiredVelocity - normal * intoSurface
+		end
 	end
 
 	-- Extra vertical probes protect thin floors/ceilings when the rig is already
@@ -106,6 +128,7 @@ local function startFlight()
 	preservedMomentum = Vector3.zero
 
 	flying = true
+	lastSafeCFrame = root.CFrame
 	attachment = Instance.new("Attachment")
 	attachment.Name = "FlightAttachment"
 	attachment.Parent = root
@@ -155,7 +178,11 @@ local function startFlight()
 		local recoveryRate = 2.8 + (5.2 * controlStrength)
 		local alphaVelocity = 1 - math.exp(-recoveryRate * dt)
 		local commandedVelocity = currentVelocity:Lerp(desiredVelocity, alphaVelocity)
-		velocity.VectorVelocity = safeFlightVelocity(character, root, commandedVelocity, dt)
+		local safeVelocity = safeFlightVelocity(character, root, commandedVelocity, dt)
+		velocity.VectorVelocity = safeVelocity
+		if safeVelocity.Magnitude > 0.01 then
+			lastSafeCFrame = root.CFrame
+		end
 
 		local look = camera.CFrame.LookVector
 		local flatLook = Vector3.new(look.X, 0, look.Z)
@@ -167,7 +194,9 @@ local function startFlight()
 			visualPitch += ((-MAX_BODY_PITCH * math.max(forwardInput, 0)) - visualPitch) * alpha
 			visualRoll += ((-MAX_BODY_ROLL * sideInput) - visualRoll) * alpha
 			cameraRoll += ((-MAX_CAMERA_ROLL * sideInput) - cameraRoll) * alpha
-			orientation.CFrame = CFrame.lookAt(Vector3.zero, flatLook.Unit) * CFrame.Angles(visualPitch, 0, visualRoll)
+			-- Keep the physical HumanoidRootPart upright. Banking/pitching the root
+			-- changes the collision assembly and caused the rig to wedge into walls.
+			orientation.CFrame = CFrame.lookAt(Vector3.zero, flatLook.Unit)
 			camera.FieldOfView += ((FLIGHT_FOV - camera.FieldOfView) * alpha)
 			camera.CFrame = camera.CFrame * CFrame.Angles(0, 0, cameraRoll)
 		end
@@ -175,7 +204,7 @@ local function startFlight()
 end
 
 local function toggleFlight()
-	if flying then stopFlight() else startFlight() end
+	if flying then stopFlight(true) else startFlight() end
 end
 
 view.button.Activated:Connect(toggleFlight)
@@ -187,4 +216,7 @@ UserInputService.InputBegan:Connect(function(input, processed)
 	end
 end)
 
-player.CharacterAdded:Connect(stopFlight)
+player.CharacterAdded:Connect(function()
+	lastSafeCFrame = nil
+	stopFlight(false)
+end)
