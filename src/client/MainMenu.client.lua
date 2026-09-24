@@ -3,7 +3,7 @@ local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 
 local MenuUI = require(script.Parent.MenuUI)
-local remote = ReplicatedStorage:WaitForChild("OpenMainMenu")
+local remote = ReplicatedStorage:WaitForChild("MainMenuState")
 local view = MenuUI.create(Players.LocalPlayer:WaitForChild("PlayerGui"))
 
 local function hide()
@@ -21,4 +21,4 @@ local function show()
 end
 
 view.close.Activated:Connect(hide)
-remote.OnClientEvent:Connect(show)
+remote.OnClientEvent:Connect(function(isOpen)\n\tif isOpen then show() else hide() end\nend)
