@@ -9,7 +9,8 @@ remote.Parent = ReplicatedStorage
 local COOLDOWN = 0.45
 local MELEE_RANGE = 6
 local LASER_RANGE = 55
-local DAMAGE = 10
+local MELEE_DAMAGE = 10
+local LASER_DAMAGE = 10
 local lastAttack = {}
 
 local function getTarget(character, range)
@@ -83,8 +84,10 @@ remote.OnServerEvent:Connect(function(player)
 
 	if hasLaser then
 		showLaser(character, targetRoot)
+		target:TakeDamage(LASER_DAMAGE)
+	else
+		target:TakeDamage(MELEE_DAMAGE)
 	end
-	target:TakeDamage(DAMAGE)
 end)
 
 Players.PlayerRemoving:Connect(function(player)
