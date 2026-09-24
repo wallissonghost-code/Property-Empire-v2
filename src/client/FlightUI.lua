@@ -44,17 +44,12 @@ function FlightUI.create(playerGui)
 	toggle.Size = UDim2.fromOffset(72, 72)
 	toggle.Visible = true
 
-	local up = makeButton(gui, "FlyUpButton", "↑", UDim2.new(1, -112, 1, -198))
-	local down = makeButton(gui, "FlyDownButton", "↓", UDim2.new(1, -112, 1, -38))
-
-	return {gui = gui, button = toggle, up = up, down = down}
+	return {gui = gui, button = toggle}
 end
 
 function FlightUI.setActive(view, active)
 	view.button.Text = active and "POUSAR" or "VOAR"
 	view.button.BackgroundColor3 = active and Color3.fromRGB(36, 96, 67) or Color3.fromRGB(28, 32, 36)
-	view.up.Visible = active
-	view.down.Visible = active
 end
 
 return FlightUI
