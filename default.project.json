@@ -22,7 +22,10 @@
             0.388235,
             0.372549,
             0.384314
-          ]
+          ],
+          "Material": "SmoothPlastic",
+          "TopSurface": "Smooth",
+          "BottomSurface": "Smooth"
         }
       },
       "SpawnLocation": {
