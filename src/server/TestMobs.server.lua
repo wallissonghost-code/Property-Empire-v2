@@ -64,6 +64,13 @@ local function createMob(config)
 
 	model.PrimaryPart = root
 	model.Parent = workspace
+	if _G.AssignMobCollisionGroup then
+		_G.AssignMobCollisionGroup(model)
+	else
+		for _, descendant in model:GetDescendants() do
+			if descendant:IsA("BasePart") then descendant.CollisionGroup = "Mobs" end
+		end
+	end
 	root:SetNetworkOwner(nil)
 
 	table.insert(mobs, {
