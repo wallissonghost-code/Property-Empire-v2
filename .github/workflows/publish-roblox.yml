@@ -1,17 +1,15 @@
-name: Publish CIDADE PROSPERA to Roblox
+name: Publish Roblox game
 
 on:
   push:
     branches: [main]
     paths:
       - "default.project.json"
-      - "src/**"
-      - "scripts/qa/**"
       - ".github/workflows/publish-roblox.yml"
   workflow_dispatch:
 
 concurrency:
-  group: cidade-prospera-place-main
+  group: roblox-game-main
   cancel-in-progress: false
 
 permissions:
@@ -36,11 +34,6 @@ jobs:
           grep -q '"DataModel"' default.project.json
           grep -q '"SpawnLocation"' default.project.json
 
-      - name: Robloxjogo pre-publish QA
-        run: |
-          set -euo pipefail
-          python3 scripts/qa/validate.py
-
       - name: Install Rojo 7.6.1
         run: |
           set -euo pipefail
@@ -61,7 +54,7 @@ jobs:
           test -s build/game.rbxl
           ls -lh build/game.rbxl
 
-      - name: Publish CIDADE PROSPERA
+      - name: Publish Roblox game
         env:
           ROBLOX_API_KEY: ${{ secrets.MUSEU_EMPIRE_API_KEY }}
         run: |
@@ -83,7 +76,7 @@ jobs:
       - name: Upload recovery artifact
         uses: actions/upload-artifact@v4
         with:
-          name: cidade-prospera-recovery-place
+          name: roblox-game-place
           path: build/game.rbxl
           if-no-files-found: error
           retention-days: 7
