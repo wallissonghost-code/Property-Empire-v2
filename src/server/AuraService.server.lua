@@ -5,61 +5,103 @@ local remote=Instance.new("RemoteEvent"); remote.Name="AuraSelect"; remote.Paren
 local VALID={Lightning=true,BlackHole=true,FireRing=true,Guardian=true}
 local active={}
 
-local function part(parent,name,size,color,material)
- local p=Instance.new("Part"); p.Name=name; p.Size=size; p.Color=color; p.Material=material or Enum.Material.Neon
- p.Anchored=true; p.CanCollide=false; p.CanTouch=false; p.CanQuery=false; p.CastShadow=false; p.Parent=parent; return p
+local function fxPart(parent,name,size,color,transparency)
+ local p=Instance.new("Part"); p.Name=name; p.Size=size; p.Color=color; p.Transparency=transparency or 0
+ p.Material=Enum.Material.Neon; p.Anchored=true; p.CanCollide=false; p.CanTouch=false; p.CanQuery=false; p.CastShadow=false; p.Parent=parent; return p
+end
+local function sphere(parent,name,size,color,transparency)
+ local p=fxPart(parent,name,Vector3.new(size,size,size),color,transparency); p.Shape=Enum.PartType.Ball; return p
+end
+local function light(parent,color,range,brightness)
+ local l=Instance.new("PointLight"); l.Color=color; l.Range=range; l.Brightness=brightness; l.Shadows=false; l.Parent=parent; return l
+end
+local function emitter(parent,texture,color,rate,lifetime,speed,size)
+ local e=Instance.new("ParticleEmitter"); e.Texture=texture; e.Color=color; e.Rate=rate; e.Lifetime=lifetime; e.Speed=speed
+ e.Size=size; e.LightEmission=.85; e.SpreadAngle=Vector2.new(180,180); e.Rotation=NumberRange.new(0,360); e.RotSpeed=NumberRange.new(-90,90); e.Parent=parent; return e
 end
 local function clear(player)
- local state=active[player]; if state and state.folder then state.folder:Destroy() end; active[player]=nil
- if player.Character then local f=player.Character:FindFirstChild("SelectedAuraFX"); if f then f:Destroy() end end
+ local s=active[player]; if s and s.folder and s.folder.Parent then s.folder:Destroy() end; active[player]=nil
+ local ch=player.Character; if ch then local f=ch:FindFirstChild("SelectedAuraFX"); if f then f:Destroy() end end
 end
-local function beam(a,b,color,width)
- local x=Instance.new("Beam"); x.Attachment0=a; x.Attachment1=b; x.FaceCamera=true; x.Width0=width; x.Width1=width*.35
- x.Color=ColorSequence.new(color); x.LightEmission=1; x.Transparency=NumberSequence.new(0.08,0.8); x.Parent=a; return x
+local function setupLightning(s)
+ s.nodes={}; s.arcs={}
+ for i=1,8 do
+  local n=sphere(s.folder,"ElectricNode",.16,Color3.fromRGB(150,225,255),.08); table.insert(s.nodes,n)
+ end
+ for i=1,4 do
+  local a0=Instance.new("Attachment"); local a1=Instance.new("Attachment"); a0.Parent=s.root; a1.Parent=s.root
+  local b=Instance.new("Beam"); b.Attachment0=a0; b.Attachment1=a1; b.FaceCamera=true; b.Width0=.12; b.Width1=.035
+  b.Color=ColorSequence.new(Color3.fromRGB(225,250,255),Color3.fromRGB(40,125,255)); b.LightEmission=1
+  b.Transparency=NumberSequence.new({NumberSequenceKeypoint.new(0,.05),NumberSequenceKeypoint.new(.7,.2),NumberSequenceKeypoint.new(1,.8)}); b.Parent=s.root
+  table.insert(s.arcs,{a0,a1,b})
+ end
+ s.glow=light(s.root,Color3.fromRGB(65,165,255),14,1.7)
+end
+local function setupBlackHole(s)
+ s.core=sphere(s.folder,"Singularity",2.25,Color3.fromRGB(0,0,0),0)
+ s.shell=sphere(s.folder,"EventHorizon",3.05,Color3.fromRGB(95,15,180),.72)
+ s.orbit={}
+ for i=1,10 do table.insert(s.orbit,sphere(s.folder,"Accretion",.18+(i%3)*.06,Color3.fromRGB(205,70,255),.08)) end
+ s.glow=light(s.shell,Color3.fromRGB(125,35,255),17,2.2)
+end
+local function setupFire(s)
+ s.flames={}
+ for i=1,16 do
+  local p=sphere(s.folder,"InfernalCore",.28,Color3.fromRGB(255,105,10),.1)
+  emitter(p,"rbxasset://textures/particles/fire_main.dds",ColorSequence.new(Color3.fromRGB(255,235,90),Color3.fromRGB(255,35,0)),8,NumberRange.new(.25,.55),NumberRange.new(.5,2),NumberSequence.new({NumberSequenceKeypoint.new(0,.55),NumberSequenceKeypoint.new(1,0)}))
+  table.insert(s.flames,p)
+ end
+ s.center=Instance.new("Attachment"); s.center.Position=Vector3.new(0,-2.6,0); s.center.Parent=s.root
+ emitter(s.center,"rbxasset://textures/particles/smoke_main.dds",ColorSequence.new(Color3.fromRGB(80,35,20),Color3.fromRGB(10,10,10)),10,NumberRange.new(.5,1.1),NumberRange.new(.3,1.4),NumberSequence.new({NumberSequenceKeypoint.new(0,.7),NumberSequenceKeypoint.new(1,1.5)}))
+ s.glow=light(s.root,Color3.fromRGB(255,85,20),13,1.8)
+end
+local function setupGuardian(s)
+ s.wings={}
+ for side=-1,1,2 do
+  local wing={}
+  for i=1,4 do
+   local feather=fxPart(s.folder,"EnergyFeather",Vector3.new(.12,2.8-i*.25,.55),Color3.fromRGB(215,245,255),.18+i*.05)
+   table.insert(wing,feather)
+  end
+  table.insert(s.wings,{side=side,parts=wing})
+ end
+ s.halo=fxPart(s.folder,"Halo",Vector3.new(.12,2.2,2.2),Color3.fromRGB(255,245,180),.1); s.halo.Shape=Enum.PartType.Cylinder
+ s.glow=light(s.root,Color3.fromRGB(150,220,255),14,1.5)
 end
 local function apply(player,name)
- clear(player); if not VALID[name] then player:SetAttribute("SelectedAura","None"); return end
+ clear(player); if name=="None" then player:SetAttribute("SelectedAura","None"); return end
+ if not VALID[name] then return end
  local ch=player.Character; local root=ch and ch:FindFirstChild("HumanoidRootPart"); if not root then return end
  local folder=Instance.new("Folder"); folder.Name="SelectedAuraFX"; folder.Parent=ch
- local state={name=name,folder=folder,root=root,t=0,parts={}}; active[player]=state
- if name=="Lightning" then
-  for i=1,7 do local p=part(folder,"BoltNode",Vector3.new(.12,.12,.12),Color3.fromRGB(80,190,255)); p.Shape=Enum.PartType.Ball; table.insert(state.parts,p) end
- elseif name=="BlackHole" then
-  local core=part(folder,"BlackHole",Vector3.new(2.8,2.8,2.8),Color3.fromRGB(5,5,8)); core.Shape=Enum.PartType.Ball; table.insert(state.parts,core)
-  for i=1,3 do local ring=part(folder,"OrbitRing",Vector3.new(.18,.18,.18),Color3.fromRGB(180,60,255)); ring.Shape=Enum.PartType.Ball; table.insert(state.parts,ring) end
-  local light=Instance.new("PointLight"); light.Color=Color3.fromRGB(145,45,255); light.Range=15; light.Brightness=2.5; light.Parent=core
- elseif name=="FireRing" then
-  for i=1,14 do local orb=part(folder,"Flame",Vector3.new(.45,.45,.45),Color3.fromRGB(255,95,15)); orb.Shape=Enum.PartType.Ball; table.insert(state.parts,orb)
-   local pe=Instance.new("ParticleEmitter"); pe.Texture="rbxasset://textures/particles/fire_main.dds"; pe.Rate=10; pe.Lifetime=NumberRange.new(.25,.5); pe.Speed=NumberRange.new(.2,1); pe.Color=ColorSequence.new(Color3.fromRGB(255,210,35),Color3.fromRGB(255,45,5)); pe.Size=NumberSequence.new(.45,0); pe.Parent=orb end
- elseif name=="Guardian" then
-  for i=1,2 do
-   local wing=part(folder,"EnergyWing",Vector3.new(.18,3.8,1.15),Color3.fromRGB(220,245,255)); wing.Transparency=.18; table.insert(state.parts,wing)
-   local light=Instance.new("PointLight"); light.Color=Color3.fromRGB(100,205,255); light.Range=10; light.Brightness=1.5; light.Parent=wing
-  end
- end
+ local s={name=name,folder=folder,root=root,t=0}; active[player]=s
+ if name=="Lightning" then setupLightning(s) elseif name=="BlackHole" then setupBlackHole(s) elseif name=="FireRing" then setupFire(s) else setupGuardian(s) end
  player:SetAttribute("SelectedAura",name)
 end
 remote.OnServerEvent:Connect(function(player,name) if name=="None" or VALID[name] then apply(player,name) end end)
 RunService.Heartbeat:Connect(function(dt)
  for player,s in pairs(active) do
-  local root=s.root; if not root.Parent then clear(player) continue end
-  s.t+=dt; local cf=root.CFrame
+  local root=s.root; if not root or not root.Parent then clear(player) continue end
+  s.t+=dt; local t=s.t; local cf=root.CFrame
   if s.name=="Lightning" then
-   for i,p in ipairs(s.parts) do
-    local a=s.t*3+i*1.7; local radius=2.3+(i%2)*.55; local y=math.sin(s.t*5+i)*2.2
-    p.CFrame=CFrame.new(root.Position+Vector3.new(math.cos(a)*radius,y,math.sin(a)*radius))
-   end
+   for i,p in ipairs(s.nodes) do local a=t*2.8+i*.79; local r=2.15+.35*math.sin(t*2+i); local y=.3+math.sin(t*4+i*1.4)*2.25; p.CFrame=CFrame.new(root.Position+Vector3.new(math.cos(a)*r,y,math.sin(a)*r)) end
+   for i,a in ipairs(s.arcs) do local n1=s.nodes[((i*2-1)-1)%#s.nodes+1]; local n2=s.nodes[((i*2)-1)%#s.nodes+1]; a[1].WorldPosition=n1.Position; a[2].WorldPosition=n2.Position; a[3].CurveSize0=math.sin(t*12+i)*.55; a[3].CurveSize1=-a[3].CurveSize0 end
+   s.glow.Brightness=1.2+math.abs(math.sin(t*9))*1.6
   elseif s.name=="BlackHole" then
-   s.parts[1].CFrame=CFrame.new(root.Position+Vector3.new(0,3.7,0))
-   for i=2,#s.parts do local a=s.t*(1.8+i*.35)+i*2.1; local r=2.1+(i-2)*.55; s.parts[i].CFrame=CFrame.new(root.Position+Vector3.new(math.cos(a)*r,3.7+math.sin(a*2)*.35,math.sin(a)*r)) end
+   local center=root.Position+Vector3.new(0,4.15,0); s.core.CFrame=CFrame.new(center); local pulse=3.05+math.sin(t*2.4)*.18; s.shell.Size=Vector3.new(pulse,pulse,pulse); s.shell.CFrame=CFrame.new(center)
+   for i,p in ipairs(s.orbit) do local a=t*(1.5+(i%3)*.22)+i*.63; local r=2.25+(i%4)*.34; local tilt=(i%2==0) and .55 or -.55; p.CFrame=CFrame.new(center+Vector3.new(math.cos(a)*r,math.sin(a*1.7)*tilt,math.sin(a)*r)) end
   elseif s.name=="FireRing" then
-   for i,p in ipairs(s.parts) do local a=(i/#s.parts)*math.pi*2+s.t*1.7; p.CFrame=CFrame.new(root.Position+Vector3.new(math.cos(a)*3,.15+math.sin(s.t*4+i)*.25,math.sin(a)*3)) end
+   for i,p in ipairs(s.flames) do local a=t*1.45+(i/#s.flames)*math.pi*2; local r=2.75+.22*math.sin(t*3+i); p.CFrame=CFrame.new(root.Position+Vector3.new(math.cos(a)*r,-2.55+.15*math.sin(t*5+i),math.sin(a)*r)) end
+   s.glow.Brightness=1.4+math.abs(math.sin(t*5))*.9
   elseif s.name=="Guardian" then
-   local flap=.35+math.sin(s.t*3)*.12
-   s.parts[1].CFrame=cf*CFrame.new(-1.7,1.3,1)*CFrame.Angles(0,0,-flap)
-   s.parts[2].CFrame=cf*CFrame.new(1.7,1.3,1)*CFrame.Angles(0,0,flap)
+   local flap=.18+math.sin(t*2.4)*.1
+   for _,wing in ipairs(s.wings) do for i,p in ipairs(wing.parts) do local side=wing.side; local x=side*(1.05+i*.55); local y=1.25+(i-1)*.34; local z=.75+(i-1)*.15; p.CFrame=cf*CFrame.new(x,y,z)*CFrame.Angles(math.rad(-12-i*3),0,side*(-.3-flap-i*.055)) end end
+   s.halo.CFrame=cf*CFrame.new(0,3.65,0)*CFrame.Angles(0,0,math.rad(90)); s.glow.Brightness=1.25+math.sin(t*2)*.25
   end
  end
 end)
-Players.PlayerAdded:Connect(function(p) p:SetAttribute("SelectedAura","None"); p.CharacterRemoving:Connect(function() clear(p) end) end)
+local function onPlayer(p)
+ p:SetAttribute("SelectedAura","None")
+ p.CharacterRemoving:Connect(function() clear(p) end)
+end
+Players.PlayerAdded:Connect(onPlayer); for _,p in Players:GetPlayers() do onPlayer(p) end
 Players.PlayerRemoving:Connect(function(p) clear(p) end)
