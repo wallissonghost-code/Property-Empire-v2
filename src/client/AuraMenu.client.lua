@@ -13,9 +13,6 @@ local sub=Instance.new("TextLabel"); sub.BackgroundTransparency=1; sub.Size=UDim
 local list=Instance.new("Frame"); list.BackgroundTransparency=1; list.Position=UDim2.fromOffset(14,76); list.Size=UDim2.new(1,-28,1,-90); list.Parent=panel
 local layout=Instance.new("UIListLayout",list); layout.Padding=UDim.new(0,8)
 local choices={
- {"Lightning","TEMPESTADE ELÉTRICA","Raios orbitais e pulsos elétricos","⚡"},
- {"BlackHole","SINGULARIDADE","Buraco negro e disco de acreção","●"},
- {"FireRing","CÍRCULO INFERNAL","Chamas vivas girando aos seus pés","🔥"},
  {"Guardian","GUARDIÃO CELESTIAL","Asas de energia e halo luminoso","✦"},
  {"None","REMOVER AURA","Voltar ao visual padrão","×"}
 }
