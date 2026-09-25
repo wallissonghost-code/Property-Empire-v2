@@ -1,9 +1,0 @@
-project=CIDADE PROSPERA
-place_id=80220344568601
-universe_id=10765616545
-source_commit=9b4500322b5199129e29c2f6eccc35424f33becf
-build=clean-from-scratch
-artifact=Cidade-de-Investidores.rbxl
-transformer=rbxmk-v0.9.1
-published_at_utc=2026-09-24T17:30:20Z
-status=accepted_by_roblox_open_cloud
