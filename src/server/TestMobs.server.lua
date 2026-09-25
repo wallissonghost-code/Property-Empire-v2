@@ -1,5 +1,4 @@
 local AssetService = game:GetService("AssetService")
-local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 
 local R15_DUMMY_ASSET_ID = 11235072353
@@ -9,10 +8,6 @@ local MOB_CONFIG = {
 	{name = "Mob_10000HP", health = 10000, position = Vector3.new(10, 3.5, -28)},
 }
 
-local CHASE_RANGE = 120
-local WALK_SPEED = 10
-local STOP_DISTANCE = 3.5
-local EDGE_LOOKAHEAD = 4
 local GROUND_PROBE_HEIGHT = 4
 local GROUND_PROBE_DEPTH = 12
 local VOID_Y = -20
@@ -120,8 +115,8 @@ local function prepareRig(config)
 
 	humanoid.MaxHealth = config.health
 	humanoid.Health = config.health
-	humanoid.WalkSpeed = WALK_SPEED
-	humanoid.AutoRotate = true
+	humanoid.WalkSpeed = 0
+	humanoid.AutoRotate = false
 	humanoid.BreakJointsOnDeath = false
 	humanoid.HealthDisplayType = Enum.HumanoidHealthDisplayType.AlwaysOn
 	humanoid.NameDisplayDistance = 60
@@ -161,25 +156,6 @@ local function createMob(config)
 	})
 end
 
-local function nearestPlayer(position)
-	local bestRoot
-	local bestDistance = CHASE_RANGE
-	for _, player in Players:GetPlayers() do
-		local character = player.Character
-		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-		local root = character and character:FindFirstChild("HumanoidRootPart")
-		if humanoid and root and humanoid.Health > 0 then
-			local offset = Vector3.new(root.Position.X - position.X, 0, root.Position.Z - position.Z)
-			local distance = offset.Magnitude
-			if distance < bestDistance then
-				bestDistance = distance
-				bestRoot = root
-			end
-		end
-	end
-	return bestRoot, bestDistance
-end
-
 local function hasGroundAt(mob, position)
 	local params = RaycastParams.new()
 	params.FilterType = Enum.RaycastFilterType.Exclude
@@ -195,24 +171,6 @@ local function recoverMob(mob)
 	mob.root.AssemblyAngularVelocity = Vector3.zero
 	mob.model:PivotTo(mob.spawnCFrame)
 	mob.humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
-end
-
-local function chase(mob, targetRoot, distance)
-	if distance <= STOP_DISTANCE then
-		mob.humanoid:Move(Vector3.zero)
-		return
-	end
-	local delta = Vector3.new(targetRoot.Position.X - mob.root.Position.X, 0, targetRoot.Position.Z - mob.root.Position.Z)
-	if delta.Magnitude <= 0.01 then
-		mob.humanoid:Move(Vector3.zero)
-		return
-	end
-	local direction = delta.Unit
-	if not hasGroundAt(mob, mob.root.Position + direction * EDGE_LOOKAHEAD) then
-		mob.humanoid:Move(Vector3.zero)
-		return
-	end
-	mob.humanoid:Move(direction, false)
 end
 
 local function scheduleRespawn(mob)
@@ -244,8 +202,7 @@ RunService.Heartbeat:Connect(function()
 			elseif mob.root.Position.Y < VOID_Y or not hasGroundAt(mob, mob.root.Position) then
 				recoverMob(mob)
 			else
-				local targetRoot, distance = nearestPlayer(mob.root.Position)
-				if targetRoot then chase(mob, targetRoot, distance) else mob.humanoid:Move(Vector3.zero) end
+				mob.humanoid:Move(Vector3.zero)
 			end
 		end
 	end
