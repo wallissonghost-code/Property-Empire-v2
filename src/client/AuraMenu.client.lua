@@ -11,7 +11,7 @@ local stroke=Instance.new("UIStroke",panel); stroke.Color=Color3.fromRGB(55,70,6
 local title=Instance.new("TextLabel"); title.BackgroundTransparency=1; title.Size=UDim2.new(1,-30,0,54); title.Position=UDim2.fromOffset(15,5); title.Text="AURAS"; title.Font=Enum.Font.GothamBold; title.TextSize=22; title.TextColor3=Color3.new(1,1,1); title.TextXAlignment=Enum.TextXAlignment.Left; title.Parent=panel
 local list=Instance.new("Frame"); list.BackgroundTransparency=1; list.Position=UDim2.fromOffset(14,62); list.Size=UDim2.new(1,-28,1,-76); list.Parent=panel
 local layout=Instance.new("UIListLayout",list); layout.Padding=UDim.new(0,8)
-local choices={{"NeonStorm","NEON STORM"},{"Inferno","INFERNO"},{"Void","VOID"},{"Celestial","CELESTIAL"},{"None","REMOVER AURA"}}
+local choices={{"Lightning","TEMPESTADE ELÉTRICA"},{"BlackHole","BURACO NEGRO"},{"FireRing","ANEL INFERNAL"},{"Guardian","ASAS CELESTIAIS"},{"None","REMOVER AURA"}}
 for _,choice in choices do
  local b=Instance.new("TextButton"); b.Size=UDim2.new(1,0,0,44); b.BackgroundColor3=Color3.fromRGB(24,29,31); b.Text=choice[2]; b.TextColor3=Color3.fromRGB(235,240,240); b.TextSize=14; b.Font=Enum.Font.GothamSemibold; b.Parent=list; Instance.new("UICorner",b).CornerRadius=UDim.new(0,11)
  b.Activated:Connect(function() remote:FireServer(choice[1]) end)
