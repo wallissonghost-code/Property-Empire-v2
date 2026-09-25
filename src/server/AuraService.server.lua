@@ -25,9 +25,7 @@ local function applyAura(player, name)
 	if not root then return end
 	clearAura(character)
 	local folder=Instance.new("Folder"); folder.Name="SelectedAuraFX"; folder.Parent=character
-	local attachment=Instance.new("Attachment"); attachment.Name="AuraCore"; attachment.Parent=root; attachment.Parent=folder
-	-- Folder cannot own an Attachment while keeping it attached to root, so use tagged instances directly.
-	attachment.Parent=root
+	local attachment=Instance.new("Attachment"); attachment.Name="AuraCore"; attachment.Parent=root
 	local marker=Instance.new("ObjectValue"); marker.Name="AuraAttachment"; marker.Value=attachment; marker.Parent=folder
 	local emitter=Instance.new("ParticleEmitter")
 	emitter.Name="AuraParticles"; emitter.Texture="rbxasset://textures/particles/sparkles_main.dds"
