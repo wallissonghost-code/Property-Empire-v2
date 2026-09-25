@@ -9,6 +9,9 @@ local function fxPart(parent,name,size,color,transparency)
  local p=Instance.new("Part"); p.Name=name; p.Size=size; p.Color=color; p.Transparency=transparency or 0
  p.Material=Enum.Material.Neon; p.Anchored=true; p.CanCollide=false; p.CanTouch=false; p.CanQuery=false; p.CastShadow=false; p.Parent=parent; return p
 end
+local function light(parent,color,range,brightness)
+ local l=Instance.new("PointLight"); l.Color=color; l.Range=range; l.Brightness=brightness; l.Shadows=false; l.Parent=parent; return l
+end
 local function clear(player)
  local s=active[player]; if s and s.folder and s.folder.Parent then s.folder:Destroy() end; active[player]=nil
  local ch=player.Character; if ch then local f=ch:FindFirstChild("SelectedAuraFX"); if f then f:Destroy() end end
